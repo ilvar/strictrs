@@ -6,6 +6,8 @@ use names::*;
 
 static mut COUNT: u32 = 0;
 
+unsafe fn forbidden() {}
+
 enum Mode {
     Fast,
     Slow,

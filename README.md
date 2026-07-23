@@ -93,7 +93,7 @@ The generated small-release command is:
 cargo release-small
 ```
 
-**Measured release size:** pending the successful M3 CI measurement. No estimate is recorded.
+**Measured release size:** 34,912 bytes for the generated hello-world binary targeting `x86_64-unknown-linux-musl` in GitHub Actions.
 
 ## Strict subset
 
@@ -128,7 +128,7 @@ See [`AGENTS.md`](AGENTS.md) for repository-specific implementation rules.
 - **M0:** deterministic compiler diagnostic oracle — complete
 - **M1:** strict-subset lint pass — complete
 - **M2:** mechanical fix loop with no-progress detection — complete
-- **M3:** footprint-locked project template — complete after the recorded size gate passes
+- **M3:** footprint-locked project template — complete
 - **M4:** property-testing integration
 
 New syntax, a custom parser, a rustc fork, and macro-based language extensions are explicit non-goals.

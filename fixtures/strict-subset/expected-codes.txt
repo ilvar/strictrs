@@ -1,0 +1,9 @@
+strictrs::capability_boundary
+strictrs::explicit_return_type
+strictrs::must_handle
+strictrs::no_as_cast
+strictrs::no_catchall_arm
+strictrs::no_glob_import
+strictrs::no_mutable_global
+strictrs::no_panic_api
+strictrs::no_unsafe

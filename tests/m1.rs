@@ -55,12 +55,14 @@ fn only_panic_apis_are_exempt_in_cfg_test_code() {
     let fixture = Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/test-exemption");
     let report = strictrs::run_check(&fixture).expect("test exemption fixture should run");
 
-    assert!(!report.diagnostics.iter().any(|diagnostic| {
-        diagnostic.code.as_deref() == Some("strictrs::no_panic_api")
-    }));
-    assert!(report.diagnostics.iter().any(|diagnostic| {
-        diagnostic.code.as_deref() == Some("strictrs::no_unsafe")
-    }));
+    assert!(!report
+        .diagnostics
+        .iter()
+        .any(|diagnostic| { diagnostic.code.as_deref() == Some("strictrs::no_panic_api") }));
+    assert!(report
+        .diagnostics
+        .iter()
+        .any(|diagnostic| { diagnostic.code.as_deref() == Some("strictrs::no_unsafe") }));
 }
 
 #[test]

@@ -373,9 +373,7 @@ fn map_lint_code(raw: Option<&str>) -> (&'static str, Option<String>) {
         | Some("clippy::indexing_slicing") => {
             ("strictrs", Some("strictrs::no_panic_api".to_owned()))
         }
-        Some("clippy::as_conversions") => {
-            ("strictrs", Some("strictrs::no_as_cast".to_owned()))
-        }
+        Some("clippy::as_conversions") => ("strictrs", Some("strictrs::no_as_cast".to_owned())),
         Some("clippy::wildcard_imports") => {
             ("strictrs", Some("strictrs::no_glob_import".to_owned()))
         }
@@ -578,10 +576,7 @@ fn location_from_span(span: &Value, project_dir: &Path) -> Option<Location> {
 
 fn collect_fixes(inner: &Value, project_dir: &Path) -> Vec<Fix> {
     let mut fixes = Vec::new();
-    let message = inner
-        .get("message")
-        .and_then(Value::as_str)
-        .unwrap_or("");
+    let message = inner.get("message").and_then(Value::as_str).unwrap_or("");
 
     collect_fix_spans(
         inner
@@ -595,10 +590,7 @@ fn collect_fixes(inner: &Value, project_dir: &Path) -> Vec<Fix> {
 
     if let Some(children) = inner.get("children").and_then(Value::as_array) {
         for child in children {
-            let hint = child
-                .get("message")
-                .and_then(Value::as_str)
-                .unwrap_or("");
+            let hint = child.get("message").and_then(Value::as_str).unwrap_or("");
             collect_fix_spans(
                 child
                     .get("spans")
@@ -628,10 +620,7 @@ fn collect_fix_spans(
         let Some(replacement) = span.get("suggested_replacement").and_then(Value::as_str) else {
             continue;
         };
-        if span
-            .get("suggestion_applicability")
-            .and_then(Value::as_str)
-            != Some("MachineApplicable")
+        if span.get("suggestion_applicability").and_then(Value::as_str) != Some("MachineApplicable")
         {
             continue;
         }
@@ -685,9 +674,10 @@ fn select_non_overlapping_fixes(fixes: Vec<&Fix>) -> Vec<&Fix> {
         };
 
         let duplicate = selected.iter().any(|existing: &&Fix| {
-            existing.edit.as_ref().is_some_and(|other| {
-                other == edit && existing.replace_with == fix.replace_with
-            })
+            existing
+                .edit
+                .as_ref()
+                .is_some_and(|other| other == edit && existing.replace_with == fix.replace_with)
         });
         if duplicate {
             continue;

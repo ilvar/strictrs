@@ -13,10 +13,7 @@ fn main() -> ExitCode {
 
     let (command, project) = match first.as_deref() {
         None => ("check", ".".to_owned()),
-        Some("check") => (
-            "check",
-            arguments.next().unwrap_or_else(|| ".".to_owned()),
-        ),
+        Some("check") => ("check", arguments.next().unwrap_or_else(|| ".".to_owned())),
         Some("fix") => ("fix", arguments.next().unwrap_or_else(|| ".".to_owned())),
         Some(path) => ("check", path.to_owned()),
     };

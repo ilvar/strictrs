@@ -24,6 +24,7 @@ pub fn public_value() {
         _ => println!("slow"),
     }
 
+    "42".parse::<u32>();
     let _text = std::fs::read_to_string("missing.txt");
 }
 

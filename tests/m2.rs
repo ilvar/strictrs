@@ -2,7 +2,7 @@ use std::fs;
 use std::path::Path;
 
 #[test]
-fn fix_loop_applies_compiler_suggestions_until_clean() {
+fn fix_loop_applies_machine_suggestions_until_clean() {
     let directory = tempfile::tempdir().expect("temp directory should be created");
     copy_fixture("fixable", directory.path());
 
@@ -11,14 +11,13 @@ fn fix_loop_applies_compiler_suggestions_until_clean() {
         .expect("fixed source should be readable");
 
     assert!(report.ok, "final report was: {report:#?}");
-    assert!(source.contains("values.first()"));
-    assert!(source.contains("values.last()"));
-    assert!(!source.contains("frist"));
-    assert!(!source.contains("lsat"));
+    assert!(source.contains("use first_values::FIRST;"));
+    assert!(source.contains("use last_values::LAST;"));
+    assert!(!source.contains("::*"));
 }
 
 #[test]
-fn fix_loop_stops_when_no_machine_fix_exists() {
+fn fix_loop_stops_after_reaching_an_unfixable_error() {
     let directory = tempfile::tempdir().expect("temp directory should be created");
     copy_fixture("no-progress", directory.path());
     let path = directory.path().join("src/main.rs");
@@ -29,7 +28,9 @@ fn fix_loop_stops_when_no_machine_fix_exists() {
     let after = fs::read_to_string(path).expect("fixture should remain readable");
 
     assert!(!report.ok);
-    assert_eq!(before, after);
+    assert_ne!(before, after);
+    assert!(after.contains("values.first().unwrap()"));
+    assert!(!after.contains("values.get(0)"));
     assert!(report
         .diagnostics
         .iter()

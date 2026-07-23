@@ -10,6 +10,16 @@ cargo clippy --all-targets --all-features --locked -- -D warnings
 cargo test --locked
 ```
 
+## Property tests
+
+`tests/properties.rs` contains a starter invariant using the exact-pinned `proptest` dev dependency. Replace the sample property with domain invariants; generated inputs are reduced to a minimal failing case when a property breaks.
+
+Run only the property suite with:
+
+```bash
+cargo test --locked --test properties
+```
+
 ## Small static release
 
 ```bash

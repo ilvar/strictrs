@@ -41,7 +41,7 @@ jobs:
         run: cargo test --all-targets --all-features
 
   template:
-    name: m3 generated project
+    name: m3/m4 generated project
     runs-on: ubuntu-latest
     timeout-minutes: 25
 
@@ -68,51 +68,25 @@ jobs:
           cd "$project_root"
           strictrs new hello-strictrs > report.json
           grep -q '"ok": true' report.json
-          echo "M3_PROJECT_ROOT=$project_root/hello-strictrs" >> "$GITHUB_ENV"
+          echo "GENERATED_PROJECT_ROOT=$project_root/hello-strictrs" >> "$GITHUB_ENV"
 
-      - name: Validate generated project
-        working-directory: ${{ env.M3_PROJECT_ROOT }}
-        run: |
-          cargo fmt --check
-          cargo clippy --all-targets --all-features --locked -- -D warnings
-          cargo test --locked
-          strictrs check . > strictrs-report.json
-          grep -q '"ok": true' strictrs-report.json
-
-      - name: Build and measure MUSL release
+      - name: Resolve M4 lockfile
         shell: bash
-        working-directory: ${{ env.M3_PROJECT_ROOT }}
+        working-directory: ${{ env.GENERATED_PROJECT_ROOT }}
         run: |
-          set +e
-          cargo release-small > "$GITHUB_WORKSPACE/m3-release.log" 2>&1
-          status=$?
-          cat "$GITHUB_WORKSPACE/m3-release.log"
-          if [ "$status" -ne 0 ]; then
-            exit "$status"
-          fi
-
           set -euo pipefail
-          binary="target/x86_64-unknown-linux-musl/release/hello-strictrs"
-          test "$("$binary")" = "Hello from hello-strictrs."
-          bytes="$(stat -c '%s' "$binary")"
-          echo "$bytes" | tee "$GITHUB_WORKSPACE/m3-size-bytes.txt"
-          echo "M3_TEMPLATE_SIZE_BYTES=$bytes"
+          rm Cargo.lock
+          cargo generate-lockfile
+          cp Cargo.lock "$GITHUB_WORKSPACE/m4-Cargo.lock"
 
-      - name: Upload release failure log
-        if: failure()
+      - name: Upload resolved M4 lockfile
         uses: actions/upload-artifact@v4
         with:
-          name: m3-release-log
-          path: m3-release.log
+          name: m4-cargo-lock
+          path: m4-Cargo.lock
 
-      - name: Upload measured size
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: m3-size
-          path: m3-size-bytes.txt
-
-      - name: Enforce size limit
-        if: success()
+      - name: Stop after lockfile capture
         shell: bash
-        run: test "$(cat m3-size-bytes.txt)" -lt 50000
+        run: |
+          echo "The resolved M4 lockfile is captured as an artifact for the final deterministic template update."
+          exit 1

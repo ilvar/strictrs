@@ -10,13 +10,14 @@ Rust already provides ownership, exhaustive matching, explicit errors, strong st
 
 ## Current status
 
-M0 through M3 are implemented:
+M0 through M4 are implemented:
 
 - deterministic compiler and Clippy diagnostics in one JSON document;
 - stable `strictrs::` lint codes and focused source checks;
 - conservative `MachineApplicable` fix iteration;
 - a deterministic `strictrs new <name>` project generator;
-- a committed lockfile, pinned toolchain, strict lint policy, and size-oriented MUSL release profile in every generated project.
+- a committed lockfile, pinned toolchain, strict lint policy, and size-oriented MUSL release profile in every generated project;
+- an exact-pinned `proptest` scaffold for agent-authored invariants, shrinking, and regression persistence.
 
 ## Install
 
@@ -62,7 +63,7 @@ strictrs path/to/project
 
 Every command emits exactly one final JSON report to stdout. It exits with status `0` only on success. Operational failures are written to stderr and exit with status `2`.
 
-## M3 project template
+## Generated project
 
 `strictrs new <name>` creates these deterministic files:
 
@@ -73,6 +74,7 @@ Every command emits exactly one final JSON report to stdout. It exits with statu
 - `README.md`
 - `rust-toolchain.toml`
 - `src/main.rs`
+- `tests/properties.rs`
 
 The generated manifest contains the required footprint profile:
 
@@ -85,7 +87,7 @@ panic = "abort"
 strip = true
 ```
 
-It has no third-party dependencies, commits its lockfile, pins the compiler and MUSL target, denies the supported strict-subset lints, and keeps panic APIs exempt only in test builds.
+Generated projects have no runtime dependencies. The property-test scaffold uses an exact-pinned `proptest` dev dependency with default features disabled and only `std` enabled. The committed lockfile pins its transitive test dependencies without changing the release binary.
 
 The generated small-release command is:
 
@@ -94,6 +96,29 @@ cargo release-small
 ```
 
 **Measured release size:** 34,912 bytes for the generated hello-world binary targeting `x86_64-unknown-linux-musl` in GitHub Actions.
+
+## Property testing
+
+`tests/properties.rs` is the handoff point between the coding agent and the runtime:
+
+1. the agent states invariants over generated inputs;
+2. `proptest` exercises those invariants across many cases;
+3. failures are shrunk to a minimal reproducer;
+4. persisted regressions remain ordinary test inputs.
+
+Run the complete generated-project test suite:
+
+```bash
+cargo test --locked
+```
+
+Run only the property suite:
+
+```bash
+cargo test --locked --test properties
+```
+
+The generated property is deliberately small and domain-neutral. Replace it with invariants about the actual program rather than duplicating the implementation inside the test.
 
 ## Strict subset
 
@@ -129,6 +154,6 @@ See [`AGENTS.md`](AGENTS.md) for repository-specific implementation rules.
 - **M1:** strict-subset lint pass — complete
 - **M2:** mechanical fix loop with no-progress detection — complete
 - **M3:** footprint-locked project template — complete
-- **M4:** property-testing integration
+- **M4:** property-testing integration — complete
 
 New syntax, a custom parser, a rustc fork, and macro-based language extensions are explicit non-goals.

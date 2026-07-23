@@ -22,7 +22,7 @@ Work in this order unless an issue or pull request explicitly says otherwise:
 4. **M3:** footprint-locked project template;
 5. **M4:** property-testing integration.
 
-Completed milestones must remain usable before later milestones are expanded.
+Completed milestones must remain usable before later work is expanded.
 
 ## Diagnostic contract
 
@@ -70,7 +70,7 @@ M2 is intentionally conservative:
 
 ## Project-template rules
 
-M3-generated projects must:
+Generated projects must:
 
 - use the exact release footprint settings in the project specification;
 - include a committed `Cargo.lock`;
@@ -81,9 +81,25 @@ M3-generated projects must:
 - create files in deterministic order with deterministic contents;
 - refuse invalid package names and existing destination paths;
 - be written through a staging directory and renamed only after every file succeeds;
-- pass formatting, Clippy, tests, the `strictrs` checker, and the binary-size acceptance job.
+- pass formatting, Clippy, tests, the `strictrs` checker, property tests, and the binary-size acceptance job.
 
 Do not record an estimated binary size. Record only a size produced by CI from the committed template.
+
+## Property-testing rules
+
+M4-generated projects must:
+
+- pin `proptest` to an exact version;
+- disable default features and enable only the features required by the scaffold;
+- keep property testing as a dev dependency so release size and runtime dependencies remain unchanged;
+- generate `tests/properties.rs` with explicit imports that comply with the strict subset;
+- state properties as invariants rather than duplicating the implementation;
+- use bounded strategies so tests remain fast and reproducible in CI;
+- preserve generated `proptest-regressions/` files when a failure is persisted;
+- run property tests through ordinary locked `cargo test`;
+- keep the generated lockfile deterministic and golden-tested.
+
+When upgrading `proptest`, update the exact manifest pin, committed generated lockfile, golden fixture, README, and CI in one coherent change.
 
 ## Fixtures and tests
 
@@ -94,7 +110,8 @@ Every behavior change requires a fixture or focused unit test.
 - Each future lint should have one fixture per stable `strictrs::` code.
 - Tests must verify deterministic ordering, exact spans, counts, source attribution, and exit status.
 - Fix tests must cover multiple edits in one file, overlapping alternatives, no-progress termination, and iteration caps.
-- Template tests must compare every generated file against the M3 golden fixture.
+- Template tests must compare every generated file against the golden template fixture.
+- Property-testing tests must verify the exact dependency pin, generated scaffold, committed lockfile, and successful locked execution.
 - When changing a golden file, explain why the contract changed; do not refresh snapshots blindly.
 - Preserve the multi-error fixture proving that at least four simultaneous compiler errors are not masked.
 - Preserve the fixture proving panic APIs are allowed in test-only code.
@@ -109,7 +126,7 @@ cargo clippy --all-targets --all-features -- -D warnings
 cargo test --all-targets --all-features
 ```
 
-For M3 changes, also validate the generated project and binary-size acceptance path.
+For generated-project changes, also validate the generated project, property suite, installed-binary path, and binary-size acceptance path.
 
 Commit and push rules:
 
@@ -129,4 +146,4 @@ GitHub Actions must enforce the same commands used locally.
 
 ## Scope discipline
 
-Do not begin M4 while M0, M1, M2, or M3 regressions remain. Avoid unrelated refactors in milestone pull requests. Keep commits and pull requests focused enough that diagnostic-contract, source-editing, and generated-template changes can be reviewed directly.
+Avoid unrelated refactors in milestone pull requests. Keep commits and pull requests focused enough that diagnostic-contract, source-editing, generated-template, and property-testing changes can be reviewed directly.

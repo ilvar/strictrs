@@ -10,6 +10,7 @@ const EXPECTED_FILES: &[&str] = &[
     "README.md",
     "rust-toolchain.toml",
     "src/main.rs",
+    "tests/properties.rs",
 ];
 
 #[test]

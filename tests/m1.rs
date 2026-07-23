@@ -71,7 +71,7 @@ fn catchall_on_an_unrelated_type_is_not_flagged() {
     let diagnostics =
         strictrs::scan_strict_subset(directory.path()).expect("source scan should run");
 
-    assert!(!diagnostics.iter().any(|diagnostic| {
-        diagnostic.code.as_deref() == Some("strictrs::no_catchall_arm")
-    }));
+    assert!(!diagnostics
+        .iter()
+        .any(|diagnostic| { diagnostic.code.as_deref() == Some("strictrs::no_catchall_arm") }));
 }

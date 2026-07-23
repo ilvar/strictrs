@@ -1,0 +1,13 @@
+[package]
+name = "strictrs"
+version = "0.1.0"
+edition = "2021"
+description = "A deterministic Rust diagnostic oracle for LLM code generation"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[dev-dependencies]
+tempfile = "3"

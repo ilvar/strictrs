@@ -1,5 +1,14 @@
+mod first_values {
+    pub const FIRST: u32 = 1;
+}
+
+mod last_values {
+    pub const LAST: u32 = 3;
+}
+
+use first_values::*;
+use last_values::*;
+
 fn main() {
-    let values = vec![1, 2, 3];
-    let _first = values.frist();
-    let _last = values.lsat();
+    println!("{} {}", FIRST, LAST);
 }

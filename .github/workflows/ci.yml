@@ -41,7 +41,7 @@ jobs:
         run: cargo test --all-targets --all-features
 
   template:
-    name: m3/m4 generated project
+    name: generated project
     runs-on: ubuntu-latest
     timeout-minutes: 25
 
@@ -70,23 +70,52 @@ jobs:
           grep -q '"ok": true' report.json
           echo "GENERATED_PROJECT_ROOT=$project_root/hello-strictrs" >> "$GITHUB_ENV"
 
-      - name: Resolve M4 lockfile
+      - name: Validate generated project
+        working-directory: ${{ env.GENERATED_PROJECT_ROOT }}
+        env:
+          PROPTEST_CASES: 128
+        run: |
+          cargo fmt --check
+          cargo clippy --all-targets --all-features --locked -- -D warnings
+          cargo test --locked
+          cargo test --locked --test properties
+          strictrs check . > strictrs-report.json
+          grep -q '"ok": true' strictrs-report.json
+
+      - name: Build and measure MUSL release
         shell: bash
         working-directory: ${{ env.GENERATED_PROJECT_ROOT }}
         run: |
-          set -euo pipefail
-          rm Cargo.lock
-          cargo generate-lockfile
-          cp Cargo.lock "$GITHUB_WORKSPACE/m4-Cargo.lock"
+          set +e
+          cargo release-small > "$GITHUB_WORKSPACE/template-release.log" 2>&1
+          status=$?
+          cat "$GITHUB_WORKSPACE/template-release.log"
+          if [ "$status" -ne 0 ]; then
+            exit "$status"
+          fi
 
-      - name: Upload resolved M4 lockfile
+          set -euo pipefail
+          binary="target/x86_64-unknown-linux-musl/release/hello-strictrs"
+          test "$("$binary")" = "Hello from hello-strictrs."
+          bytes="$(stat -c '%s' "$binary")"
+          echo "$bytes" | tee "$GITHUB_WORKSPACE/template-size-bytes.txt"
+          echo "TEMPLATE_SIZE_BYTES=$bytes"
+
+      - name: Upload release failure log
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: m4-cargo-lock
-          path: m4-Cargo.lock
+          name: template-release-log
+          path: template-release.log
 
-      - name: Stop after lockfile capture
+      - name: Upload measured size
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: template-size
+          path: template-size-bytes.txt
+
+      - name: Enforce size limit
+        if: success()
         shell: bash
-        run: |
-          echo "The resolved M4 lockfile is captured as an artifact for the final deterministic template update."
-          exit 1
+        run: test "$(cat template-size-bytes.txt)" -lt 50000

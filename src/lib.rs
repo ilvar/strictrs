@@ -72,11 +72,7 @@ const PRODUCTION_PANIC_LINTS: &[&str] = &[
 
 pub fn run_check(project_dir: &Path) -> Result<Report, String> {
     let mut diagnostics = run_clippy(project_dir, true, ALL_TARGET_LINTS)?;
-    diagnostics.extend(run_clippy(
-        project_dir,
-        false,
-        PRODUCTION_PANIC_LINTS,
-    )?);
+    diagnostics.extend(run_clippy(project_dir, false, PRODUCTION_PANIC_LINTS)?);
     diagnostics.extend(scan_strict_subset(project_dir)?);
     Ok(build_report(diagnostics))
 }

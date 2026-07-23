@@ -2,10 +2,12 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 const CARGO_CONFIG: &str = r#"[alias]
-release-small = "build --release --locked --target x86_64-unknown-linux-musl -Z build-std=std,panic_abort -Z build-std-features=panic_immediate_abort"
+release-small = "build --release --locked --target x86_64-unknown-linux-musl -Z build-std=std,panic_abort"
 
 [target.x86_64-unknown-linux-musl]
 rustflags = [
+    "-Zunstable-options",
+    "-Cpanic=immediate-abort",
     "-Zlocation-detail=none",
     "-Zfmt-debug=none",
 ]

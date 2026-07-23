@@ -59,7 +59,11 @@ pub fn run_check(project_dir: &Path) -> Result<Report, String> {
 pub fn parse_cargo_messages(stream: &str, project_dir: &Path) -> Report {
     let mut diagnostics = Vec::new();
 
-    for line in stream.lines().map(str::trim).filter(|line| !line.is_empty()) {
+    for line in stream
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+    {
         let Ok(message) = serde_json::from_str::<Value>(line) else {
             continue;
         };
@@ -97,7 +101,11 @@ pub fn parse_cargo_messages(stream: &str, project_dir: &Path) -> Report {
         let primary_span = inner
             .get("spans")
             .and_then(Value::as_array)
-            .and_then(|spans| spans.iter().find(|span| span.get("is_primary").and_then(Value::as_bool) == Some(true)));
+            .and_then(|spans| {
+                spans
+                    .iter()
+                    .find(|span| span.get("is_primary").and_then(Value::as_bool) == Some(true))
+            });
 
         let at = primary_span.and_then(|span| location_from_span(span, project_dir));
         let fixes = collect_fixes(inner);
@@ -169,7 +177,8 @@ fn collect_fixes(inner: &Value) -> Vec<Fix> {
         };
 
         for span in spans {
-            let Some(replacement) = span.get("suggested_replacement").and_then(Value::as_str) else {
+            let Some(replacement) = span.get("suggested_replacement").and_then(Value::as_str)
+            else {
                 continue;
             };
 

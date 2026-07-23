@@ -30,9 +30,10 @@ fn fix_loop_stops_when_no_machine_fix_exists() {
 
     assert!(!report.ok);
     assert_eq!(before, after);
-    assert!(report.diagnostics.iter().any(|diagnostic| {
-        diagnostic.code.as_deref() == Some("strictrs::no_panic_api")
-    }));
+    assert!(report
+        .diagnostics
+        .iter()
+        .any(|diagnostic| { diagnostic.code.as_deref() == Some("strictrs::no_panic_api") }));
 }
 
 #[test]
@@ -42,8 +43,8 @@ fn zero_iteration_limit_does_not_modify_sources() {
     let path = directory.path().join("src/main.rs");
     let before = fs::read_to_string(&path).expect("fixture should be readable");
 
-    let report = strictrs::run_fix_with_limit(directory.path(), 0)
-        .expect("zero-iteration check should run");
+    let report =
+        strictrs::run_fix_with_limit(directory.path(), 0).expect("zero-iteration check should run");
     let after = fs::read_to_string(path).expect("fixture should remain readable");
 
     assert!(!report.ok);

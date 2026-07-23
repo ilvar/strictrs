@@ -83,20 +83,36 @@ jobs:
         shell: bash
         working-directory: ${{ env.M3_PROJECT_ROOT }}
         run: |
+          set +e
+          cargo release-small > "$GITHUB_WORKSPACE/m3-release.log" 2>&1
+          status=$?
+          cat "$GITHUB_WORKSPACE/m3-release.log"
+          if [ "$status" -ne 0 ]; then
+            exit "$status"
+          fi
+
           set -euo pipefail
-          cargo release-small
           binary="target/x86_64-unknown-linux-musl/release/hello-strictrs"
           test "$("$binary")" = "Hello from hello-strictrs."
           bytes="$(stat -c '%s' "$binary")"
           echo "$bytes" | tee "$GITHUB_WORKSPACE/m3-size-bytes.txt"
           echo "M3_TEMPLATE_SIZE_BYTES=$bytes"
 
+      - name: Upload release failure log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m3-release-log
+          path: m3-release.log
+
       - name: Upload measured size
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: m3-size
           path: m3-size-bytes.txt
 
       - name: Enforce size limit
+        if: success()
         shell: bash
         run: test "$(cat m3-size-bytes.txt)" -lt 50000

@@ -101,7 +101,7 @@ Every behavior change requires a fixture or focused unit test.
 
 ## Validation and commit discipline
 
-Run the complete relevant validation set before creating a commit:
+Run the complete relevant validation set before committing or pushing:
 
 ```bash
 cargo fmt --check
@@ -109,19 +109,21 @@ cargo clippy --all-targets --all-features -- -D warnings
 cargo test --all-targets --all-features
 ```
 
-For M3 changes, also run the generated-project and binary-size acceptance workflow.
+For M3 changes, also validate the generated project and binary-size acceptance path.
 
-Commit rules:
+Commit and push rules:
 
 - assemble a complete logical change before committing;
 - inspect the full diff and staged file list before the commit;
-- do not commit known formatting, compilation, lint, or test failures;
-- do not create one commit per file, one commit per formatter change, or one commit merely to discover a CI error;
-- prefer one milestone commit when the complete change can be validated locally;
-- when a branch has not been reviewed or depended on, amend the milestone commit for mechanical corrections rather than stacking noise;
-- after review has started, use the smallest coherent follow-up commit and do not rewrite history unexpectedly;
-- remove temporary logs, generated patches, and diagnostic workflow steps before the final commit;
-- use CI to verify a validated change, not as a substitute for validation that is available locally.
+- do not commit or push known formatting, compilation, lint, or test failures;
+- do not create one commit per file or one commit merely to discover a CI error;
+- keep commits coherent; multiple commits are acceptable when they represent distinct logical changes;
+- batch related mechanical corrections and push them together after validation;
+- do not push each formatting or test correction separately and trigger a torrent of CI runs;
+- use concurrency cancellation in CI so a superseded branch run stops promptly;
+- remove temporary logs, generated patches, and diagnostic workflow steps before the final push;
+- use CI to verify a validated change, not as a substitute for validation available locally;
+- do not rewrite published history solely to reduce the visible commit count.
 
 GitHub Actions must enforce the same commands used locally.
 

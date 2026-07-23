@@ -23,13 +23,13 @@ M0 through M3 are implemented:
 Install the binary from a local checkout:
 
 ```bash
-cargo install --path . --locked
+cargo install --path .
 ```
 
 Or install the current `main` branch directly from GitHub:
 
 ```bash
-cargo install --git https://github.com/ilvar/strictrs --locked
+cargo install --git https://github.com/ilvar/strictrs
 ```
 
 Ensure Cargo's binary directory is on `PATH`—normally `$HOME/.cargo/bin`.
@@ -93,7 +93,7 @@ The generated small-release command is:
 cargo release-small
 ```
 
-**Measured release size:** pending the first committed M3 CI measurement. No estimate is recorded.
+**Measured release size:** pending the successful M3 CI measurement. No estimate is recorded.
 
 ## Strict subset
 

@@ -25,12 +25,18 @@ pub fn create_project(parent: &Path, name: &str) -> Result<PathBuf, String> {
 
     let destination = parent.join(name);
     if destination.exists() {
-        return Err(format!("destination already exists: {}", destination.display()));
+        return Err(format!(
+            "destination already exists: {}",
+            destination.display()
+        ));
     }
 
     let staging = parent.join(format!(".{name}.strictrs-tmp"));
     if staging.exists() {
-        return Err(format!("staging path already exists: {}", staging.display()));
+        return Err(format!(
+            "staging path already exists: {}",
+            staging.display()
+        ));
     }
 
     fs::create_dir(&staging)
@@ -146,11 +152,7 @@ fn render_main(name: &str) -> String {
     format!(
         r#"#![cfg_attr(
     not(test),
-    deny(
-        clippy::expect_used,
-        clippy::indexing_slicing,
-        clippy::unwrap_used
-    )
+    deny(clippy::expect_used, clippy::indexing_slicing, clippy::unwrap_used)
 )]
 
 fn main() {{

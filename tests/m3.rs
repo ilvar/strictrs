@@ -20,7 +20,10 @@ fn new_command_matches_the_golden_project() {
     assert!(output.status.success(), "stderr: {}", stderr(&output));
     let report: serde_json::Value =
         serde_json::from_slice(&output.stdout).expect("stdout should contain JSON");
-    assert_eq!(report.get("ok").and_then(serde_json::Value::as_bool), Some(true));
+    assert_eq!(
+        report.get("ok").and_then(serde_json::Value::as_bool),
+        Some(true)
+    );
 
     let generated = directory.path().join("hello-strictrs");
     let expected = Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/m3-template");

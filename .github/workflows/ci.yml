@@ -34,20 +34,6 @@ jobs:
       - name: Check formatting
         run: cargo fmt --check
 
-      - name: Capture rustfmt patch
-        if: failure()
-        shell: bash
-        run: |
-          cargo fmt
-          git diff -- . ':(exclude).github/workflows/ci.yml' > rustfmt.patch
-
-      - name: Upload rustfmt patch
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: rustfmt-patch
-          path: rustfmt.patch
-
       - name: Run Clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
 
@@ -66,17 +52,21 @@ jobs:
       - name: Install host Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Build strictrs
-        run: cargo build
+      - name: Install strictrs binary
+        shell: bash
+        run: |
+          set -euo pipefail
+          install_root="$RUNNER_TEMP/strictrs-install"
+          cargo install --path . --root "$install_root"
+          echo "$install_root/bin" >> "$GITHUB_PATH"
 
       - name: Generate project
         shell: bash
         run: |
           set -euo pipefail
-          workspace="$(pwd)"
           project_root="$(mktemp -d)"
           cd "$project_root"
-          "$workspace/target/debug/strictrs" new hello-strictrs > report.json
+          strictrs new hello-strictrs > report.json
           grep -q '"ok": true' report.json
           echo "M3_PROJECT_ROOT=$project_root/hello-strictrs" >> "$GITHUB_ENV"
 
@@ -86,28 +76,8 @@ jobs:
           cargo fmt --check
           cargo clippy --all-targets --all-features --locked -- -D warnings
           cargo test --locked
-
-      - name: Capture generated-project validation
-        if: failure()
-        shell: bash
-        working-directory: ${{ env.M3_PROJECT_ROOT }}
-        run: |
-          set +e
-          {
-            echo '=== cargo fmt --check ==='
-            cargo fmt --check
-            echo '=== cargo clippy ==='
-            cargo clippy --all-targets --all-features --locked -- -D warnings
-            echo '=== cargo test ==='
-            cargo test --locked
-          } > "$GITHUB_WORKSPACE/generated-validation.log" 2>&1
-
-      - name: Upload generated-project validation
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: generated-validation
-          path: generated-validation.log
+          strictrs check . > strictrs-report.json
+          grep -q '"ok": true' strictrs-report.json
 
       - name: Build and measure MUSL release
         shell: bash
@@ -118,5 +88,15 @@ jobs:
           binary="target/x86_64-unknown-linux-musl/release/hello-strictrs"
           test "$("$binary")" = "Hello from hello-strictrs."
           bytes="$(stat -c '%s' "$binary")"
+          echo "$bytes" | tee "$GITHUB_WORKSPACE/m3-size-bytes.txt"
           echo "M3_TEMPLATE_SIZE_BYTES=$bytes"
-          test "$bytes" -lt 50000
+
+      - name: Upload measured size
+        uses: actions/upload-artifact@v4
+        with:
+          name: m3-size
+          path: m3-size-bytes.txt
+
+      - name: Enforce size limit
+        shell: bash
+        run: test "$(cat m3-size-bytes.txt)" -lt 50000

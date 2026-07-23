@@ -189,7 +189,7 @@ pub fn apply_fixes(project_dir: &Path, report: &Report) -> Result<usize, String>
                     path.display()
                 ));
             };
-            if current == fix.replace_with {
+            if current == fix.replace_with.as_str() {
                 continue;
             }
 

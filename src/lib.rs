@@ -1,8 +1,11 @@
+use regex::Regex;
 use serde::Serialize;
 use serde_json::Value;
 use std::cmp::Ordering;
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use walkdir::WalkDir;
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct Report {
@@ -42,18 +45,40 @@ pub struct Fix {
     pub end_col: u64,
 }
 
+const CLIPPY_LINTS: &[&str] = &[
+    "clippy::unwrap_used",
+    "clippy::expect_used",
+    "clippy::indexing_slicing",
+    "clippy::as_conversions",
+    "clippy::wildcard_imports",
+    "unsafe_code",
+    "unused_must_use",
+];
+
 pub fn run_check(project_dir: &Path) -> Result<Report, String> {
-    let output = Command::new("cargo")
-        .arg("check")
+    let mut command = Command::new("cargo");
+    command
+        .arg("clippy")
         .arg("--message-format=json")
+        .arg("--all-targets")
+        .arg("--all-features")
+        .arg("--");
+
+    for lint in CLIPPY_LINTS {
+        command.arg("-D").arg(lint);
+    }
+
+    let output = command
         .current_dir(project_dir)
         .output()
-        .map_err(|error| format!("failed to execute cargo check: {error}"))?;
+        .map_err(|error| format!("failed to execute cargo clippy: {error}"))?;
 
     let stdout = String::from_utf8(output.stdout)
         .map_err(|error| format!("cargo emitted invalid UTF-8 on stdout: {error}"))?;
 
-    Ok(parse_cargo_messages(&stdout, project_dir))
+    let mut diagnostics = parse_cargo_messages(&stdout, project_dir).diagnostics;
+    diagnostics.extend(scan_strict_subset(project_dir)?);
+    Ok(build_report(diagnostics))
 }
 
 pub fn parse_cargo_messages(stream: &str, project_dir: &Path) -> Report {
@@ -92,11 +117,11 @@ pub fn parse_cargo_messages(stream: &str, project_dir: &Path) -> Report {
             continue;
         }
 
-        let code = inner
+        let raw_code = inner
             .get("code")
             .and_then(|value| value.get("code"))
-            .and_then(Value::as_str)
-            .map(ToOwned::to_owned);
+            .and_then(Value::as_str);
+        let (source, code) = map_lint_code(raw_code);
 
         let primary_span = inner
             .get("spans")
@@ -107,20 +132,193 @@ pub fn parse_cargo_messages(stream: &str, project_dir: &Path) -> Report {
                     .find(|span| span.get("is_primary").and_then(Value::as_bool) == Some(true))
             });
 
-        let at = primary_span.and_then(|span| location_from_span(span, project_dir));
-        let fixes = collect_fixes(inner);
-
         diagnostics.push(Diagnostic {
             level: level.to_owned(),
-            source: "rustc".to_owned(),
+            source: source.to_owned(),
             code,
             message: text.to_owned(),
-            at,
-            fixes,
+            at: primary_span.and_then(|span| location_from_span(span, project_dir)),
+            fixes: collect_fixes(inner),
         });
     }
 
+    build_report(diagnostics)
+}
+
+pub fn scan_strict_subset(project_dir: &Path) -> Result<Vec<Diagnostic>, String> {
+    let src = project_dir.join("src");
+    if !src.exists() {
+        return Ok(Vec::new());
+    }
+
+    let public_fn = Regex::new(r"^\s*pub(?:\([^)]*\))?\s+(?:async\s+)?fn\s+[A-Za-z_][A-Za-z0-9_]*\s*\([^)]*\)\s*(?:where\b[^\{]*)?\{")
+        .map_err(|error| format!("invalid public function regex: {error}"))?;
+    let mutable_static = Regex::new(r"^\s*(?:pub\s+)?static\s+mut\b")
+        .map_err(|error| format!("invalid mutable static regex: {error}"))?;
+
+    let mut diagnostics = Vec::new();
+
+    for entry in WalkDir::new(&src).into_iter().filter_map(Result::ok) {
+        let path = entry.path();
+        if !entry.file_type().is_file() || path.extension().and_then(|ext| ext.to_str()) != Some("rs") {
+            continue;
+        }
+
+        let source = fs::read_to_string(path)
+            .map_err(|error| format!("failed to read {}: {error}", path.display()))?;
+        let lines: Vec<&str> = source.lines().collect();
+        let has_local_enum = lines.iter().any(|line| line.trim_start().starts_with("enum ") || line.trim_start().starts_with("pub enum "));
+        let capability_ranges = capability_ranges(&lines);
+
+        for (index, line) in lines.iter().enumerate() {
+            let line_no = index as u64 + 1;
+            let trimmed = line.trim();
+
+            if mutable_static.is_match(line) {
+                diagnostics.push(custom_diagnostic(
+                    "strictrs::no_mutable_global",
+                    "module-level mutable state obscures effects; use owned state passed explicitly",
+                    path,
+                    project_dir,
+                    line_no,
+                    line,
+                ));
+            }
+
+            if public_fn.is_match(line) && !line.contains("->") {
+                diagnostics.push(custom_diagnostic(
+                    "strictrs::explicit_return_type",
+                    "public functions must declare an explicit return type so intent is compiler-checked",
+                    path,
+                    project_dir,
+                    line_no,
+                    line,
+                ));
+            }
+
+            if has_local_enum && (trimmed.starts_with("_ =>") || trimmed.contains(" _ =>")) {
+                diagnostics.push(custom_diagnostic(
+                    "strictrs::no_catchall_arm",
+                    "catch-all arms can hide newly added enum variants; match variants explicitly",
+                    path,
+                    project_dir,
+                    line_no,
+                    line,
+                ));
+            }
+
+            let uses_capability = line.contains("std::fs::")
+                || line.contains("std::net::")
+                || line.contains("std::process::");
+            if uses_capability && !inside_ranges(index, &capability_ranges) {
+                diagnostics.push(custom_diagnostic(
+                    "strictrs::capability_boundary",
+                    "filesystem, network, and process effects must live in a capability module",
+                    path,
+                    project_dir,
+                    line_no,
+                    line,
+                ));
+            }
+        }
+    }
+
+    Ok(diagnostics)
+}
+
+fn map_lint_code(raw: Option<&str>) -> (&'static str, Option<String>) {
+    match raw {
+        Some("clippy::unwrap_used") | Some("clippy::expect_used") | Some("clippy::indexing_slicing") => {
+            ("strictrs", Some("strictrs::no_panic_api".to_owned()))
+        }
+        Some("clippy::as_conversions") => ("strictrs", Some("strictrs::no_as_cast".to_owned())),
+        Some("clippy::wildcard_imports") => {
+            ("strictrs", Some("strictrs::no_glob_import".to_owned()))
+        }
+        Some("unsafe_code") => ("strictrs", Some("strictrs::no_unsafe".to_owned())),
+        Some("unused_must_use") => ("strictrs", Some("strictrs::must_handle".to_owned())),
+        Some(code) => ("rustc", Some(code.to_owned())),
+        None => ("rustc", None),
+    }
+}
+
+fn capability_ranges(lines: &[&str]) -> Vec<(usize, usize)> {
+    let mut ranges = Vec::new();
+    let mut pending = false;
+    let mut depth = 0usize;
+    let mut start = None;
+
+    for (index, line) in lines.iter().enumerate() {
+        if line.contains("strictrs: capability") || line.contains("cfg_attr(any(), capability)") {
+            pending = true;
+        }
+
+        if pending && line.contains("mod ") && line.contains('{') {
+            start = Some(index);
+            depth = brace_delta(line);
+            pending = false;
+            if depth == 0 {
+                ranges.push((index, index));
+                start = None;
+            }
+            continue;
+        }
+
+        if let Some(begin) = start {
+            let delta = brace_delta(line);
+            if delta >= 0 {
+                depth = depth.saturating_add(delta as usize);
+            } else {
+                depth = depth.saturating_sub((-delta) as usize);
+            }
+            if depth == 0 {
+                ranges.push((begin, index));
+                start = None;
+            }
+        }
+    }
+
+    ranges
+}
+
+fn brace_delta(line: &str) -> isize {
+    let opens = line.chars().filter(|ch| *ch == '{').count() as isize;
+    let closes = line.chars().filter(|ch| *ch == '}').count() as isize;
+    opens - closes
+}
+
+fn inside_ranges(line: usize, ranges: &[(usize, usize)]) -> bool {
+    ranges.iter().any(|(start, end)| line >= *start && line <= *end)
+}
+
+fn custom_diagnostic(
+    code: &str,
+    message: &str,
+    path: &Path,
+    project_dir: &Path,
+    line: u64,
+    snippet: &str,
+) -> Diagnostic {
+    Diagnostic {
+        level: "error".to_owned(),
+        source: "strictrs".to_owned(),
+        code: Some(code.to_owned()),
+        message: message.to_owned(),
+        at: Some(Location {
+            file: normalize_path(path.to_string_lossy().as_ref(), project_dir),
+            line,
+            col: 1,
+            end_line: line,
+            end_col: snippet.chars().count() as u64 + 1,
+            snippet: snippet.to_owned(),
+        }),
+        fixes: Vec::new(),
+    }
+}
+
+fn build_report(mut diagnostics: Vec<Diagnostic>) -> Report {
     diagnostics.sort_by(compare_diagnostics);
+    diagnostics.dedup();
 
     let error_count = diagnostics
         .iter()
@@ -138,7 +336,6 @@ pub fn parse_cargo_messages(stream: &str, project_dir: &Path) -> Report {
 
 fn location_from_span(span: &Value, project_dir: &Path) -> Option<Location> {
     let file = span.get("file_name")?.as_str()?;
-    let path = normalize_path(file, project_dir);
     let snippet = span
         .get("text")
         .and_then(Value::as_array)
@@ -149,7 +346,7 @@ fn location_from_span(span: &Value, project_dir: &Path) -> Option<Location> {
         .to_owned();
 
     Some(Location {
-        file: path,
+        file: normalize_path(file, project_dir),
         line: span.get("line_start")?.as_u64()?,
         col: span.get("column_start")?.as_u64()?,
         end_line: span.get("line_end")?.as_u64()?,
@@ -160,7 +357,6 @@ fn location_from_span(span: &Value, project_dir: &Path) -> Option<Location> {
 
 fn collect_fixes(inner: &Value) -> Vec<Fix> {
     let mut fixes = Vec::new();
-
     let Some(children) = inner.get("children").and_then(Value::as_array) else {
         return fixes;
     };
@@ -171,7 +367,6 @@ fn collect_fixes(inner: &Value) -> Vec<Fix> {
             .and_then(Value::as_str)
             .unwrap_or("")
             .to_owned();
-
         let Some(spans) = child.get("spans").and_then(Value::as_array) else {
             continue;
         };
@@ -181,13 +376,11 @@ fn collect_fixes(inner: &Value) -> Vec<Fix> {
             else {
                 continue;
             };
-
-            let applicability = span
+            if span
                 .get("suggestion_applicability")
                 .and_then(Value::as_str)
-                .unwrap_or("");
-
-            if applicability != "MachineApplicable" {
+                != Some("MachineApplicable")
+            {
                 continue;
             }
 
@@ -223,9 +416,7 @@ fn normalize_path(file: &str, project_dir: &Path) -> String {
 }
 
 fn compare_diagnostics(left: &Diagnostic, right: &Diagnostic) -> Ordering {
-    let left_key = diagnostic_key(left);
-    let right_key = diagnostic_key(right);
-    left_key.cmp(&right_key)
+    diagnostic_key(left).cmp(&diagnostic_key(right))
 }
 
 fn diagnostic_key(diagnostic: &Diagnostic) -> (String, u64, u64, String) {

@@ -57,26 +57,48 @@ struct EditSpan {
     byte_end: usize,
 }
 
-const CLIPPY_LINTS: &[&str] = &[
-    "clippy::unwrap_used",
-    "clippy::expect_used",
-    "clippy::indexing_slicing",
+const ALL_TARGET_LINTS: &[&str] = &[
     "clippy::as_conversions",
     "clippy::wildcard_imports",
     "unsafe_code",
     "unused_must_use",
 ];
 
+const PRODUCTION_PANIC_LINTS: &[&str] = &[
+    "clippy::unwrap_used",
+    "clippy::expect_used",
+    "clippy::indexing_slicing",
+];
+
 pub fn run_check(project_dir: &Path) -> Result<Report, String> {
+    let mut diagnostics = run_clippy(project_dir, true, ALL_TARGET_LINTS)?;
+    diagnostics.extend(run_clippy(
+        project_dir,
+        false,
+        PRODUCTION_PANIC_LINTS,
+    )?);
+    diagnostics.extend(scan_strict_subset(project_dir)?);
+    Ok(build_report(diagnostics))
+}
+
+fn run_clippy(
+    project_dir: &Path,
+    all_targets: bool,
+    denied_lints: &[&str],
+) -> Result<Vec<Diagnostic>, String> {
     let mut command = Command::new("cargo");
     command
         .arg("clippy")
         .arg("--message-format=json")
         .arg("--all-features")
-        .arg("--no-deps")
-        .arg("--");
+        .arg("--no-deps");
 
-    for lint in CLIPPY_LINTS {
+    if all_targets {
+        command.arg("--all-targets");
+    }
+
+    command.arg("--");
+    for lint in denied_lints {
         command.arg("-D").arg(lint);
     }
 
@@ -100,9 +122,7 @@ pub fn run_check(project_dir: &Path) -> Result<Report, String> {
         return Err(format!("cargo clippy failed without diagnostics{suffix}"));
     }
 
-    let mut diagnostics = compiler_report.diagnostics;
-    diagnostics.extend(scan_strict_subset(project_dir)?);
-    Ok(build_report(diagnostics))
+    Ok(compiler_report.diagnostics)
 }
 
 pub fn run_fix(project_dir: &Path) -> Result<Report, String> {

@@ -24,6 +24,7 @@ fn strict_subset_lints_share_the_unified_contract() {
         "strictrs::no_mutable_global",
         "strictrs::explicit_return_type",
         "strictrs::no_catchall_arm",
+        "strictrs::must_handle",
         "strictrs::capability_boundary",
     ] {
         assert!(
@@ -50,11 +51,16 @@ fn marked_capability_module_is_exempt() {
 }
 
 #[test]
-fn panic_apis_in_cfg_test_code_are_exempt() {
+fn only_panic_apis_are_exempt_in_cfg_test_code() {
     let fixture = Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/test-exemption");
     let report = strictrs::run_check(&fixture).expect("test exemption fixture should run");
 
-    assert!(report.ok, "test-only panic API was linted: {report:#?}");
+    assert!(!report.diagnostics.iter().any(|diagnostic| {
+        diagnostic.code.as_deref() == Some("strictrs::no_panic_api")
+    }));
+    assert!(report.diagnostics.iter().any(|diagnostic| {
+        diagnostic.code.as_deref() == Some("strictrs::no_unsafe")
+    }));
 }
 
 #[test]

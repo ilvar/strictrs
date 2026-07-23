@@ -34,6 +34,20 @@ jobs:
       - name: Check formatting
         run: cargo fmt --check
 
+      - name: Capture rustfmt patch
+        if: failure()
+        shell: bash
+        run: |
+          cargo fmt
+          git diff -- . ':(exclude).github/workflows/ci.yml' > rustfmt.patch
+
+      - name: Upload rustfmt patch
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rustfmt-patch
+          path: rustfmt.patch
+
       - name: Run Clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
 
@@ -72,6 +86,28 @@ jobs:
           cargo fmt --check
           cargo clippy --all-targets --all-features --locked -- -D warnings
           cargo test --locked
+
+      - name: Capture generated-project validation
+        if: failure()
+        shell: bash
+        working-directory: ${{ env.M3_PROJECT_ROOT }}
+        run: |
+          set +e
+          {
+            echo '=== cargo fmt --check ==='
+            cargo fmt --check
+            echo '=== cargo clippy ==='
+            cargo clippy --all-targets --all-features --locked -- -D warnings
+            echo '=== cargo test ==='
+            cargo test --locked
+          } > "$GITHUB_WORKSPACE/generated-validation.log" 2>&1
+
+      - name: Upload generated-project validation
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-validation
+          path: generated-validation.log
 
       - name: Build and measure MUSL release
         shell: bash

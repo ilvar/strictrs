@@ -38,4 +38,17 @@ jobs:
         run: cargo clippy --all-targets --all-features -- -D warnings
 
       - name: Run tests
-        run: cargo test --all-targets --all-features
+        shell: bash
+        run: |
+          set +e
+          cargo test --all-targets --all-features > test.log 2>&1
+          status=$?
+          cat test.log
+          exit "$status"
+
+      - name: Upload test log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-log
+          path: test.log

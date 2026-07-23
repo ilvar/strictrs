@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 #[test]
 fn fix_loop_applies_compiler_suggestions_until_clean() {
@@ -65,9 +65,4 @@ fn copy_file(source_root: &Path, destination_root: &Path, relative: &Path) {
         fs::create_dir_all(parent).expect("fixture directory should be created");
     }
     fs::copy(source_root.join(relative), &destination).expect("fixture file should be copied");
-}
-
-#[allow(dead_code)]
-fn _path_type_check(path: PathBuf) -> PathBuf {
-    path
 }

@@ -16,6 +16,9 @@ fn cargo_check_surfaces_four_distinct_errors_without_masking() {
         .collect();
 
     for expected in ["E0004", "E0308", "E0425", "E0599"] {
-        assert!(codes.contains(expected), "missing {expected}; report was: {report:#?}");
+        assert!(
+            codes.contains(expected),
+            "missing {expected}; report was: {report:#?}"
+        );
     }
 }

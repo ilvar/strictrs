@@ -39,3 +39,48 @@ jobs:
 
       - name: Run tests
         run: cargo test --all-targets --all-features
+
+  template:
+    name: m3 generated project
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install host Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build strictrs
+        run: cargo build
+
+      - name: Generate project
+        shell: bash
+        run: |
+          set -euo pipefail
+          workspace="$(pwd)"
+          project_root="$(mktemp -d)"
+          cd "$project_root"
+          "$workspace/target/debug/strictrs" new hello-strictrs > report.json
+          grep -q '"ok": true' report.json
+          echo "M3_PROJECT_ROOT=$project_root/hello-strictrs" >> "$GITHUB_ENV"
+
+      - name: Validate generated project
+        working-directory: ${{ env.M3_PROJECT_ROOT }}
+        run: |
+          cargo fmt --check
+          cargo clippy --all-targets --all-features --locked -- -D warnings
+          cargo test --locked
+
+      - name: Build and measure MUSL release
+        shell: bash
+        working-directory: ${{ env.M3_PROJECT_ROOT }}
+        run: |
+          set -euo pipefail
+          cargo release-small
+          binary="target/x86_64-unknown-linux-musl/release/hello-strictrs"
+          test "$("$binary")" = "Hello from hello-strictrs."
+          bytes="$(stat -c '%s' "$binary")"
+          echo "M3_TEMPLATE_SIZE_BYTES=$bytes"
+          test "$bytes" -lt 50000

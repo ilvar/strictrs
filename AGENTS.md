@@ -22,7 +22,7 @@ Work in this order unless an issue or pull request explicitly says otherwise:
 4. **M3:** footprint-locked project template;
 5. **M4:** property-testing integration.
 
-M0, M1, and M2 must remain usable before later milestones are expanded.
+Completed milestones must remain usable before later milestones are expanded.
 
 ## Diagnostic contract
 
@@ -68,6 +68,23 @@ M2 is intentionally conservative:
 - stop when clean, when no applicable edit remains, when a pass makes no progress, or when the iteration cap is reached;
 - keep the final stdout value as the ordinary diagnostic report, not a separate fix-result schema.
 
+## Project-template rules
+
+M3-generated projects must:
+
+- use the exact release footprint settings in the project specification;
+- include a committed `Cargo.lock`;
+- contain no unpinned third-party dependency;
+- pin the Rust toolchain and MUSL target used for the size gate;
+- bake the strict non-panic lint policy into `Cargo.toml`;
+- preserve the test-only panic-API exemption with crate-level conditional lint attributes;
+- create files in deterministic order with deterministic contents;
+- refuse invalid package names and existing destination paths;
+- be written through a staging directory and renamed only after every file succeeds;
+- pass formatting, Clippy, tests, the `strictrs` checker, and the binary-size acceptance job.
+
+Do not record an estimated binary size. Record only a size produced by CI from the committed template.
+
 ## Fixtures and tests
 
 Every behavior change requires a fixture or focused unit test.
@@ -77,13 +94,14 @@ Every behavior change requires a fixture or focused unit test.
 - Each future lint should have one fixture per stable `strictrs::` code.
 - Tests must verify deterministic ordering, exact spans, counts, source attribution, and exit status.
 - Fix tests must cover multiple edits in one file, overlapping alternatives, no-progress termination, and iteration caps.
+- Template tests must compare every generated file against the M3 golden fixture.
 - When changing a golden file, explain why the contract changed; do not refresh snapshots blindly.
 - Preserve the multi-error fixture proving that at least four simultaneous compiler errors are not masked.
 - Preserve the fixture proving panic APIs are allowed in test-only code.
 
-## Required checks
+## Validation and commit discipline
 
-Before proposing or merging changes, run:
+Run the complete relevant validation set before creating a commit:
 
 ```bash
 cargo fmt --check
@@ -91,8 +109,22 @@ cargo clippy --all-targets --all-features -- -D warnings
 cargo test --all-targets --all-features
 ```
 
-GitHub Actions must enforce the same commands.
+For M3 changes, also run the generated-project and binary-size acceptance workflow.
+
+Commit rules:
+
+- assemble a complete logical change before committing;
+- inspect the full diff and staged file list before the commit;
+- do not commit known formatting, compilation, lint, or test failures;
+- do not create one commit per file, one commit per formatter change, or one commit merely to discover a CI error;
+- prefer one milestone commit when the complete change can be validated locally;
+- when a branch has not been reviewed or depended on, amend the milestone commit for mechanical corrections rather than stacking noise;
+- after review has started, use the smallest coherent follow-up commit and do not rewrite history unexpectedly;
+- remove temporary logs, generated patches, and diagnostic workflow steps before the final commit;
+- use CI to verify a validated change, not as a substitute for validation that is available locally.
+
+GitHub Actions must enforce the same commands used locally.
 
 ## Scope discipline
 
-Do not begin M3 or M4 work while M0, M1, or M2 regressions remain. Avoid unrelated refactors in milestone pull requests. Keep commits and pull requests focused enough that diagnostic-contract and source-editing changes can be reviewed directly.
+Do not begin M4 while M0, M1, M2, or M3 regressions remain. Avoid unrelated refactors in milestone pull requests. Keep commits and pull requests focused enough that diagnostic-contract, source-editing, and generated-template changes can be reviewed directly.

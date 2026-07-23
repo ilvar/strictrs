@@ -6,6 +6,8 @@ pub fn first(values: &[u32]) -> Option<&u32> {
 mod tests {
     use super::first;
 
+    unsafe fn forbidden_in_tests() {}
+
     #[test]
     fn panic_api_is_allowed_in_tests() {
         let values = [1];

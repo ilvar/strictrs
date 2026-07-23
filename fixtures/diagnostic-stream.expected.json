@@ -1,0 +1,76 @@
+{
+  "ok": false,
+  "error_count": 4,
+  "warning_count": 0,
+  "diagnostics": [
+    {
+      "level": "error",
+      "source": "rustc",
+      "code": "E0308",
+      "message": "mismatched types",
+      "at": {
+        "file": "src/main.rs",
+        "line": 7,
+        "col": 18,
+        "end_line": 7,
+        "end_col": 32,
+        "snippet": "    let _: u32 = \"not a number\";"
+      },
+      "fixes": []
+    },
+    {
+      "level": "error",
+      "source": "rustc",
+      "code": "E0425",
+      "message": "cannot find function `missing_function` in this scope",
+      "at": {
+        "file": "src/main.rs",
+        "line": 11,
+        "col": 5,
+        "end_line": 11,
+        "end_col": 21,
+        "snippet": "    missing_function();"
+      },
+      "fixes": []
+    },
+    {
+      "level": "error",
+      "source": "rustc",
+      "code": "E0599",
+      "message": "no method named `frist` found for struct `Vec<{integer}>` in the current scope",
+      "at": {
+        "file": "src/main.rs",
+        "line": 16,
+        "col": 20,
+        "end_line": 16,
+        "end_col": 25,
+        "snippet": "    let _ = values.frist();"
+      },
+      "fixes": [
+        {
+          "hint": "there is a method `first` with a similar name",
+          "replace_with": "first",
+          "line": 16,
+          "col": 20,
+          "end_line": 16,
+          "end_col": 25
+        }
+      ]
+    },
+    {
+      "level": "error",
+      "source": "rustc",
+      "code": "E0004",
+      "message": "non-exhaustive patterns: `Direction::South` not covered",
+      "at": {
+        "file": "src/main.rs",
+        "line": 20,
+        "col": 11,
+        "end_line": 20,
+        "end_col": 20,
+        "snippet": "    match direction {"
+      },
+      "fixes": []
+    }
+  ]
+}

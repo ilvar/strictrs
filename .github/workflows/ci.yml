@@ -34,28 +34,8 @@ jobs:
       - name: Check formatting
         run: cargo fmt --check
 
-      - name: Generate rustfmt patch
-        if: failure()
-        run: |
-          cargo fmt
-          git diff -- src tests > rustfmt.patch
-
-      - name: Upload rustfmt patch
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: rustfmt-patch
-          path: rustfmt.patch
-
       - name: Run Clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
 
       - name: Run tests
-        run: cargo test --all-targets --all-features 2>&1 | tee test.log
-
-      - name: Upload test log
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-log
-          path: test.log
+        run: cargo test --all-targets --all-features

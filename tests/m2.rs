@@ -22,8 +22,8 @@ fn fix_loop_stops_after_reaching_an_unfixable_error() {
     let path = fixture.path().join("src/main.rs");
     let before = fs::read_to_string(&path).expect("fixture should be readable");
 
-    let report =
-        strictrs::run_fix_with_limit(fixture.path(), 3).expect("no-progress fixture should be checked");
+    let report = strictrs::run_fix_with_limit(fixture.path(), 3)
+        .expect("no-progress fixture should be checked");
     let after = fs::read_to_string(path).expect("fixture should remain readable");
 
     assert!(!report.ok);

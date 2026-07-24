@@ -24,6 +24,20 @@ Work in this order unless an issue or pull request explicitly says otherwise:
 
 Completed milestones must remain usable before later work is expanded.
 
+## Toolchain policy
+
+The repository and generated projects pin Rust **1.97.1**. Keep these synchronized:
+
+- root `rust-toolchain.toml`;
+- root `Cargo.toml` `rust-version`;
+- generated `rust-toolchain.toml`;
+- generated `Cargo.toml` `rust-version`;
+- golden template fixtures;
+- GitHub Actions toolchain setup;
+- README and embedded help.
+
+Generated projects must use stable Rust. Do not reintroduce nightly-only `-Z` flags or `rust-src` unless the project specification explicitly changes and acceptance tests justify it.
+
 ## Diagnostic contract
 
 The JSON diagnostic shape is the public API between the toolchain and coding agents. Treat incompatible changes as breaking changes.
@@ -47,16 +61,36 @@ Internal metadata such as file names and rustc byte offsets may be retained with
 
 It must describe:
 
-- installation and every supported command form;
+- installation and every supported command form, including `install-skills`;
 - the check → patch → re-check workflow;
 - stdout/stderr behavior, report fields, deterministic ordering, and exit codes;
 - every stable strict-subset code and the capability-module marker;
 - conservative fix-loop safety and termination;
 - generated-project contents and footprint profile;
 - property-testing expectations and final validation commands;
+- skill installation locations and overwrite behavior;
 - constraints against invented fixes, hidden diagnostics, and unvalidated pushes.
 
-`--help`, `-h`, `help`, and subcommand help aliases must print identical text to stdout and exit successfully. Invocation errors must print only concise usage and error context to stderr. Any CLI, diagnostic, lint, template, property-testing, or validation change must update the embedded help and its regression tests in the same coherent change.
+`--help`, `-h`, `help`, and subcommand help aliases must print identical text to stdout and exit successfully. Invocation errors must print only concise usage and error context to stderr. Any CLI, diagnostic, lint, template, property-testing, installation, or validation change must update the embedded help and its regression tests in the same coherent change.
+
+## Skill-installation contract
+
+`skills/strictrs/SKILL.md` is the canonical portable skill bundled into the binary.
+
+`strictrs install-skills` must:
+
+- detect Codex from its executable or the `~/.codex`/`~/.agents` directories;
+- install Codex's copy at `~/.agents/skills/strictrs/SKILL.md`;
+- detect Claude Code from its executable or `~/.claude`;
+- install Claude Code's copy at `~/.claude/skills/strictrs/SKILL.md`;
+- install only for detected agents;
+- be idempotent when the installed content is identical;
+- refuse to overwrite different existing content;
+- preflight every target before writing any target;
+- emit one clean JSON report on stdout and human installation notices on stderr;
+- never modify a user's home directory as a side effect of `cargo install`.
+
+The skill must use portable Agent Skills frontmatter with at least `name` and `description`, and it must direct agents to `strictrs --help` as the current operational source of truth.
 
 ## Implementation rules
 
@@ -67,7 +101,7 @@ It must describe:
 - Keep path normalization and diagnostic ordering stable across machines.
 - Avoid panics in production code. Return structured errors.
 - Do not silently discard malformed compiler messages, Cargo failures, or directory-walk errors unless they are explicitly known non-diagnostic events.
-- Keep stdout reserved for the JSON contract, except for the explicit plain-text `--help` mode. Human-oriented operational errors belong on stderr.
+- Keep stdout reserved for the JSON contract, except for the explicit plain-text `--help` mode. Human-oriented operational errors and installation notices belong on stderr.
 - Preserve the explicit exemption for panic APIs in `#[cfg(test)]` code.
 
 ## Mechanical fix rules
@@ -89,10 +123,11 @@ M2 is intentionally conservative:
 
 Generated projects must:
 
+- pin Rust 1.97.1 and the `x86_64-unknown-linux-musl` target;
+- use stable Cargo commands without nightly-only flags;
 - use the exact release footprint settings in the project specification;
 - include a committed `Cargo.lock`;
 - contain no unpinned third-party dependency;
-- pin the Rust toolchain and MUSL target used for the size gate;
 - bake the strict non-panic lint policy into `Cargo.toml`;
 - preserve the test-only panic-API exemption with crate-level conditional lint attributes;
 - create files in deterministic order with deterministic contents;
@@ -100,7 +135,7 @@ Generated projects must:
 - be written through a staging directory and renamed only after every file succeeds;
 - pass formatting, Clippy, tests, the `strictrs` checker, property tests, and the binary-size acceptance job.
 
-Do not record an estimated binary size. Record only a size produced by CI from the committed template.
+Do not record an estimated binary size. Record only a size produced by CI from the committed template, or describe the enforced threshold without a numeric measurement.
 
 ## Property-testing rules
 
@@ -130,13 +165,15 @@ Every behavior change requires a fixture or focused unit test.
 - Template tests must compare every generated file against the golden template fixture.
 - Property-testing tests must verify the exact dependency pin, generated scaffold, committed lockfile, and successful locked execution.
 - Help tests must verify stdout/stderr separation, successful aliases, and the presence of every required agent-manual section.
+- Skill tests must cover Codex and Claude paths, idempotence, absent-agent failure, and modified-file refusal.
+- Toolchain tests must reject stale nightly pins and nightly-only flags.
 - When changing a golden file, explain why the contract changed; do not refresh snapshots blindly.
 - Preserve the multi-error fixture proving that at least four simultaneous compiler errors are not masked.
 - Preserve the fixture proving panic APIs are allowed in test-only code.
 
 ## Validation and commit discipline
 
-Run the complete relevant validation set before committing or pushing:
+Run the complete relevant validation set with Rust 1.97.1 before committing or pushing:
 
 ```bash
 cargo fmt --check
@@ -144,7 +181,7 @@ cargo clippy --all-targets --all-features -- -D warnings
 cargo test --all-targets --all-features
 ```
 
-For generated-project changes, also validate the generated project, property suite, installed-binary path, and binary-size acceptance path.
+For generated-project changes, also validate the generated project, property suite, installed-binary path, stable MUSL release, and binary-size acceptance path. For skill changes, run the installed binary against isolated fake Codex and Claude homes.
 
 Commit and push rules:
 
@@ -164,4 +201,4 @@ GitHub Actions must enforce the same commands used locally.
 
 ## Scope discipline
 
-Avoid unrelated refactors in milestone pull requests. Keep commits and pull requests focused enough that diagnostic-contract, source-editing, generated-template, property-testing, installation, and help-contract changes can be reviewed directly.
+Avoid unrelated refactors in milestone pull requests. Keep commits and pull requests focused enough that diagnostic-contract, source-editing, generated-template, property-testing, installation, toolchain, and help-contract changes can be reviewed directly.

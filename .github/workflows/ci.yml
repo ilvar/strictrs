@@ -23,8 +23,8 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+      - name: Install Rust 1.97.1
+        uses: dtolnay/rust-toolchain@1.97.1
         with:
           components: rustfmt, clippy
 
@@ -48,6 +48,27 @@ jobs:
           cargo install --git "file://$GITHUB_WORKSPACE" --root "$install_root" --locked
           test -x "$install_root/bin/strictrs"
 
+      - name: Verify agent skill installation
+        shell: bash
+        run: |
+          set -euo pipefail
+          agent_home="$RUNNER_TEMP/agent-home"
+          mkdir -p "$agent_home/.codex" "$agent_home/.claude"
+
+          HOME="$agent_home" PATH="$RUNNER_TEMP/git-install/bin:$PATH" \
+            "$RUNNER_TEMP/git-install/bin/strictrs" install-skills \
+            > "$RUNNER_TEMP/skills-report.json"
+          grep -q '"ok": true' "$RUNNER_TEMP/skills-report.json"
+          cmp skills/strictrs/SKILL.md \
+            "$agent_home/.agents/skills/strictrs/SKILL.md"
+          cmp skills/strictrs/SKILL.md \
+            "$agent_home/.claude/skills/strictrs/SKILL.md"
+
+          HOME="$agent_home" PATH="$RUNNER_TEMP/git-install/bin:$PATH" \
+            "$RUNNER_TEMP/git-install/bin/strictrs" install-skills \
+            > "$RUNNER_TEMP/skills-report-second.json"
+          grep -q '"ok": true' "$RUNNER_TEMP/skills-report-second.json"
+
   template:
     name: generated project
     runs-on: ubuntu-latest
@@ -57,8 +78,8 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Install host Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+      - name: Install Rust 1.97.1
+        uses: dtolnay/rust-toolchain@1.97.1
 
       - name: Install strictrs binary
         shell: bash

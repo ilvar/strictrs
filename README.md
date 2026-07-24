@@ -16,8 +16,9 @@ M0 through M4 are implemented:
 - stable `strictrs::` lint codes and focused source checks;
 - conservative `MachineApplicable` fix iteration;
 - a deterministic `strictrs new <name>` project generator;
-- a committed lockfile, pinned toolchain, strict lint policy, and size-oriented MUSL release profile in every generated project;
-- an exact-pinned `proptest` scaffold for agent-authored invariants, shrinking, and regression persistence.
+- a committed lockfile, Rust 1.97.1 toolchain, strict lint policy, and size-oriented MUSL release profile in every generated project;
+- an exact-pinned `proptest` scaffold for agent-authored invariants, shrinking, and regression persistence;
+- portable agent-skill installation for detected Codex and Claude Code clients.
 
 ## Install
 
@@ -33,7 +34,29 @@ Or install the current `main` branch directly from GitHub:
 cargo install --git https://github.com/ilvar/strictrs
 ```
 
-Ensure Cargo's binary directory is on `PATH`—normally `$HOME/.cargo/bin`.
+The repository and generated projects pin Rust **1.97.1**. Ensure Cargo's binary directory is on `PATH`—normally `$HOME/.cargo/bin`.
+
+### Install the agent skill
+
+After installing the binary, register the bundled portable skill with detected local agents:
+
+```bash
+strictrs install-skills
+```
+
+The command detects Codex through the `codex` executable or the `~/.codex`/`~/.agents` directories and installs:
+
+```text
+~/.agents/skills/strictrs/SKILL.md
+```
+
+It detects Claude Code through the `claude` executable or `~/.claude` and installs:
+
+```text
+~/.claude/skills/strictrs/SKILL.md
+```
+
+The operation is idempotent. It accepts an identical existing skill but refuses to overwrite a modified file. Remove a customized copy explicitly before reinstalling the bundled version. `cargo install` itself does not modify agent configuration or home-directory files.
 
 ## Usage
 
@@ -61,13 +84,19 @@ Create a footprint-locked project in the current directory:
 strictrs new hello-strictrs
 ```
 
+Install the portable skill for detected local agents:
+
+```bash
+strictrs install-skills
+```
+
 For backward compatibility, a bare path is treated as `check`:
 
 ```bash
 strictrs path/to/project
 ```
 
-Operational commands emit exactly one final JSON report to stdout. `--help` is the only plain-text stdout mode. Reports exit with status `0` only on success, status `1` when diagnostics remain, and status `2` for invocation or operational failures. Human-oriented failures are written to stderr.
+Operational commands emit exactly one final JSON report to stdout. `--help` is the only plain-text stdout mode. Reports exit with status `0` only on success, status `1` when diagnostics remain, and status `2` for invocation or operational failures. Human-oriented failures and skill-installation notices are written to stderr.
 
 ## Generated project
 
@@ -82,7 +111,7 @@ Operational commands emit exactly one final JSON report to stdout. `--help` is t
 - `src/main.rs`
 - `tests/properties.rs`
 
-The generated manifest contains the required footprint profile:
+The generated project pins Rust 1.97.1 and the `x86_64-unknown-linux-musl` target. Its manifest contains the footprint profile:
 
 ```toml
 [profile.release]
@@ -95,13 +124,13 @@ strip = true
 
 Generated projects have no runtime dependencies. The property-test scaffold uses an exact-pinned `proptest` dev dependency with default features disabled and only `std` enabled. The committed lockfile pins its transitive test dependencies without changing the release binary.
 
-The generated small-release command is:
+The generated small-release command uses stable Rust and the prebuilt MUSL standard library:
 
 ```bash
 cargo release-small
 ```
 
-**Measured release size:** 34,912 bytes for the generated hello-world binary targeting `x86_64-unknown-linux-musl` in GitHub Actions.
+CI enforces that the generated hello-world binary remains below **50,000 bytes** and publishes the exact byte count as the `template-size` artifact.
 
 ## Property testing
 
@@ -142,7 +171,7 @@ The generated property is deliberately small and domain-neutral. Replace it with
 
 ## Development
 
-Required checks:
+The repository pins Rust 1.97.1 in `rust-toolchain.toml`. Required checks:
 
 ```bash
 cargo fmt --check
@@ -150,7 +179,7 @@ cargo clippy --all-targets --all-features -- -D warnings
 cargo test --all-targets --all-features
 ```
 
-Fixtures live under `fixtures/`. Changes to the diagnostic schema, ordering, generated project contents, or embedded agent help are public-contract changes and must update their focused tests intentionally.
+Fixtures live under `fixtures/`. Changes to the diagnostic schema, ordering, generated project contents, embedded agent help, or bundled skill are public-contract changes and must update their focused tests intentionally.
 
 See [`AGENTS.md`](AGENTS.md) for repository-specific implementation rules.
 

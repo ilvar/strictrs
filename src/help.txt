@@ -8,10 +8,15 @@ PURPOSE
 INSTALL
   cargo install --git https://github.com/ilvar/strictrs
 
+  After installation, register the portable agent skill with detected local
+  Codex and Claude Code installations:
+
+    strictrs install-skills
+
 COMMANDS
   strictrs --help
       Print this complete agent manual. `-h`, `help`, `check --help`,
-      `fix --help`, and `new --help` are equivalent.
+      `fix --help`, `new --help`, and `install-skills --help` are equivalent.
 
   strictrs check [PATH]
       Check a Cargo project. PATH defaults to the current directory.
@@ -24,6 +29,10 @@ COMMANDS
   strictrs new <NAME>
       Create a deterministic, footprint-locked Rust project in the current
       directory.
+
+  strictrs install-skills
+      Install the bundled skill for detected Codex and Claude Code clients.
+      The operation is idempotent and refuses to overwrite modified copies.
 
   strictrs [PATH]
       Backward-compatible alias for `strictrs check PATH`.
@@ -41,9 +50,10 @@ AGENT WORKFLOW
   9. Inspect the final diff and do not submit known failures.
 
 OUTPUT CONTRACT
-  Operational commands (`check`, `fix`, `new`, and a bare PATH) write exactly
-  one JSON document to stdout. `--help` is the only plain-text stdout mode.
-  Human-oriented operational failures are written to stderr.
+  Operational commands (`check`, `fix`, `new`, `install-skills`, and a bare
+  PATH) write exactly one JSON document to stdout. `--help` is the only
+  plain-text stdout mode. Human-oriented operational failures and successful
+  skill-installation notices are written to stderr.
 
   Top-level report fields:
     ok             true only when no error diagnostics remain
@@ -63,9 +73,9 @@ OUTPUT CONTRACT
   human stderr as diagnostics and do not depend on incidental Cargo output.
 
 EXIT STATUS
-  0  help printed, project created, or report is clean
+  0  help printed, project created, skills installed, or report is clean
   1  check/fix completed but error diagnostics remain
-  2  invalid invocation or operational/tool failure
+  2  invalid invocation, no supported agent detected, or operational/tool failure
 
 STRICT SUBSET
   strictrs::no_unsafe
@@ -134,8 +144,8 @@ GENERATED PROJECTS
     src/main.rs
     tests/properties.rs
 
-  The generated project pins its Rust toolchain, MUSL target, strict lint
-  policy, exact proptest dev dependency, and lockfile. Its release profile uses:
+  The generated project pins Rust 1.97.1, the MUSL target, strict lint policy,
+  exact proptest dev dependency, and lockfile. Its release profile uses:
     opt-level = "z"
     lto = true
     codegen-units = 1
@@ -152,8 +162,22 @@ PROPERTY TESTING
     cargo test --locked
     cargo test --locked --test properties
 
+SKILL INSTALLATION
+  `strictrs install-skills` detects local agent installations and copies the
+  bundled portable `SKILL.md` to:
+
+    Codex:      ~/.agents/skills/strictrs/SKILL.md
+    Claude Code: ~/.claude/skills/strictrs/SKILL.md
+
+  Codex is detected through its command or the `~/.codex`/`~/.agents`
+  directories. Claude Code is detected through its command or `~/.claude`.
+  Re-running the command succeeds when the installed copy is unchanged. A
+  different existing file is never overwritten; remove it explicitly before
+  installing the bundled version. No home-directory files are modified during
+  `cargo install` itself.
+
 FINAL VALIDATION
-  For the strictrs repository itself:
+  For the strictrs repository itself, using Rust 1.97.1:
     cargo fmt --check
     cargo clippy --all-targets --all-features -- -D warnings
     cargo test --all-targets --all-features

@@ -17,10 +17,15 @@ fn help_prints_the_complete_agent_manual() {
         "FIX SAFETY",
         "GENERATED PROJECTS",
         "PROPERTY TESTING",
+        "SKILL INSTALLATION",
         "FINAL VALIDATION",
         "AGENT CONSTRAINTS",
         "MachineApplicable",
         "strictrs::capability_boundary",
+        "strictrs install-skills",
+        ".agents/skills/strictrs/SKILL.md",
+        ".claude/skills/strictrs/SKILL.md",
+        "Rust 1.97.1",
         "cargo install --git https://github.com/ilvar/strictrs",
         "cargo clippy --all-targets --all-features -- -D warnings",
     ] {
@@ -39,6 +44,7 @@ fn help_aliases_have_identical_stdout() {
         &["check", "--help"][..],
         &["fix", "--help"][..],
         &["new", "--help"][..],
+        &["install-skills", "--help"][..],
     ] {
         let actual = run(arguments);
         assert!(actual.status.success(), "arguments were {arguments:?}");

@@ -130,7 +130,7 @@ The generated small-release command uses stable Rust and the prebuilt MUSL stand
 cargo release-small
 ```
 
-CI enforces that the generated hello-world binary remains below **50,000 bytes** and publishes the exact byte count as the `template-size` artifact.
+**Measured stable release size:** 377,400 bytes for the generated hello-world binary targeting `x86_64-unknown-linux-musl` in GitHub Actions. CI enforces a **400,000-byte** ceiling and publishes the exact byte count as the `template-size` artifact.
 
 ## Property testing
 

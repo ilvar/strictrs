@@ -14,14 +14,13 @@ fn install_skills_installs_for_detected_agents_and_is_idempotent() {
     assert!(first.status.success(), "stderr: {}", stderr(&first));
     assert_clean_report(&first);
 
-    let codex = home
-        .path()
-        .join(".agents/skills/strictrs/SKILL.md");
-    let claude = home
-        .path()
-        .join(".claude/skills/strictrs/SKILL.md");
+    let codex = home.path().join(".agents/skills/strictrs/SKILL.md");
+    let claude = home.path().join(".claude/skills/strictrs/SKILL.md");
 
-    assert_eq!(fs::read_to_string(&codex).expect("Codex skill should exist"), SKILL);
+    assert_eq!(
+        fs::read_to_string(&codex).expect("Codex skill should exist"),
+        SKILL
+    );
     assert_eq!(
         fs::read_to_string(&claude).expect("Claude skill should exist"),
         SKILL
@@ -30,7 +29,10 @@ fn install_skills_installs_for_detected_agents_and_is_idempotent() {
     let second = run(home.path());
     assert!(second.status.success(), "stderr: {}", stderr(&second));
     assert_clean_report(&second);
-    assert_eq!(fs::read_to_string(codex).expect("Codex skill should remain"), SKILL);
+    assert_eq!(
+        fs::read_to_string(codex).expect("Codex skill should remain"),
+        SKILL
+    );
     assert_eq!(
         fs::read_to_string(claude).expect("Claude skill should remain"),
         SKILL
@@ -42,9 +44,7 @@ fn install_skills_refuses_to_overwrite_modified_content() {
     let home = tempfile::tempdir().expect("temp home should be created");
     fs::create_dir(home.path().join(".codex")).expect("Codex marker should be created");
 
-    let destination = home
-        .path()
-        .join(".agents/skills/strictrs/SKILL.md");
+    let destination = home.path().join(".agents/skills/strictrs/SKILL.md");
     fs::create_dir_all(destination.parent().expect("skill should have a parent"))
         .expect("skill directory should be created");
     fs::write(&destination, "custom skill\n").expect("custom skill should be written");

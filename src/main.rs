@@ -6,7 +6,8 @@ use std::path::Path;
 use std::process::ExitCode;
 
 const AGENT_HELP: &str = include_str!("help.txt");
-const USAGE: &str = "usage: strictrs [--help] | strictrs [check|fix] [path] | strictrs new <name> | strictrs install-skills";
+const USAGE: &str =
+    "usage: strictrs [--help] | strictrs [check|fix] [path] | strictrs new <name> | strictrs install-skills";
 
 fn main() -> ExitCode {
     let mut arguments = env::args().skip(1);
@@ -94,9 +95,7 @@ fn parse_path_or_help(
     }
 }
 
-fn parse_install_skills(
-    arguments: &mut impl Iterator<Item = String>,
-) -> Result<Operation, String> {
+fn parse_install_skills(arguments: &mut impl Iterator<Item = String>) -> Result<Operation, String> {
     match arguments.next().as_deref() {
         None => Ok(Operation::InstallSkills),
         Some("-h" | "--help") => Ok(Operation::Help),

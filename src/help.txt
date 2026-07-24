@@ -1,0 +1,175 @@
+strictrs — strict Rust feedback loop for coding agents
+
+PURPOSE
+  strictrs keeps ordinary Rust syntax and semantics, then adds a strict coding
+  profile and a deterministic check → patch → re-check interface. Use it as the
+  primary feedback oracle while generating or modifying Rust code.
+
+INSTALL
+  cargo install --git https://github.com/ilvar/strictrs
+
+COMMANDS
+  strictrs --help
+      Print this complete agent manual. `-h`, `help`, `check --help`,
+      `fix --help`, and `new --help` are equivalent.
+
+  strictrs check [PATH]
+      Check a Cargo project. PATH defaults to the current directory.
+
+  strictrs fix [PATH]
+      Apply compiler-supplied MachineApplicable edits, re-check, and repeat
+      until clean, blocked, unchanged, or capped. PATH defaults to the current
+      directory.
+
+  strictrs new <NAME>
+      Create a deterministic, footprint-locked Rust project in the current
+      directory.
+
+  strictrs [PATH]
+      Backward-compatible alias for `strictrs check PATH`.
+
+AGENT WORKFLOW
+  1. Read the task and inspect the existing project before editing.
+  2. Make the smallest coherent source change that advances the task.
+  3. Run `strictrs check PATH`.
+  4. Parse the single JSON document written to stdout.
+  5. Address every error diagnostic. Prefer a supplied fix only when it is
+     present; never invent compiler applicability metadata.
+  6. Optionally run `strictrs fix PATH` for conservative mechanical edits.
+  7. Re-run `strictrs check PATH` until `ok` is true.
+  8. Run the project validation commands, including tests and property tests.
+  9. Inspect the final diff and do not submit known failures.
+
+OUTPUT CONTRACT
+  Operational commands (`check`, `fix`, `new`, and a bare PATH) write exactly
+  one JSON document to stdout. `--help` is the only plain-text stdout mode.
+  Human-oriented operational failures are written to stderr.
+
+  Top-level report fields:
+    ok             true only when no error diagnostics remain
+    error_count    number of error diagnostics
+    warning_count  number of warning diagnostics
+    diagnostics    deterministic array sorted by file, line, column, and code
+
+  Each diagnostic may contain:
+    level          error or warning
+    source         rustc or strictrs
+    code           rustc code or stable strictrs:: code
+    message        actionable description
+    at             file, start/end position, and source snippet
+    fixes          only compiler/Clippy MachineApplicable replacements
+
+  Treat the JSON schema and diagnostic ordering as a public API. Do not parse
+  human stderr as diagnostics and do not depend on incidental Cargo output.
+
+EXIT STATUS
+  0  help printed, project created, or report is clean
+  1  check/fix completed but error diagnostics remain
+  2  invalid invocation or operational/tool failure
+
+STRICT SUBSET
+  strictrs::no_unsafe
+      Do not use unsafe Rust. Prefer safe APIs.
+
+  strictrs::no_panic_api
+      Outside test-only code, do not use unwrap, expect, or unchecked indexing.
+      Return or explicitly handle Result/Option values and use checked access.
+
+  strictrs::no_catchall_arm
+      Do not use `_ =>` when matching a locally defined enum. Name every variant.
+
+  strictrs::no_as_cast
+      Avoid numeric `as` casts. Use TryFrom/TryInto and handle conversion errors.
+
+  strictrs::no_glob_import
+      Avoid glob imports. Import each required item explicitly.
+
+  strictrs::no_mutable_global
+      Do not use `static mut`. Keep state explicitly owned.
+
+  strictrs::explicit_return_type
+      Public functions must declare an explicit return type, including `-> ()`.
+
+  strictrs::must_handle
+      Handle must_use values or explicitly discard them when intentional.
+
+  strictrs::capability_boundary
+      Keep filesystem, network, and process access inside an explicitly marked
+      capability module.
+
+CAPABILITY MODULES
+  Mark a capability boundary with the exact comment immediately before the
+  module:
+
+    // strictrs: capability
+    mod filesystem {
+        pub fn load(path: &std::path::Path) -> std::io::Result<String> {
+            std::fs::read_to_string(path)
+        }
+    }
+
+FIX SAFETY
+  `strictrs fix` is conservative:
+    - applies only rustc/Clippy suggestions marked MachineApplicable;
+    - never synthesizes replacement text;
+    - uses compiler byte offsets and validates UTF-8 boundaries;
+    - refuses edits outside the requested project root;
+    - groups edits by file and applies them back-to-front;
+    - deduplicates identical edits and resolves overlaps deterministically;
+    - re-runs the complete checker after every patch pass;
+    - stops when clean, no edit remains, no progress occurs, or the iteration
+      limit is reached.
+
+  A remaining diagnostic after `fix` requires an explicit source change by the
+  agent. Never assume `fix` can repair policy or design errors.
+
+GENERATED PROJECTS
+  `strictrs new NAME` creates:
+    .cargo/config.toml
+    .gitignore
+    Cargo.lock
+    Cargo.toml
+    README.md
+    rust-toolchain.toml
+    src/main.rs
+    tests/properties.rs
+
+  The generated project pins its Rust toolchain, MUSL target, strict lint
+  policy, exact proptest dev dependency, and lockfile. Its release profile uses:
+    opt-level = "z"
+    lto = true
+    codegen-units = 1
+    panic = "abort"
+    strip = true
+
+PROPERTY TESTING
+  Replace the starter invariant in `tests/properties.rs` with domain properties.
+  State observable invariants rather than duplicating the implementation.
+  Keep strategies bounded so runs remain fast. Preserve generated
+  `proptest-regressions/` files because they retain minimal failing cases.
+
+  Run:
+    cargo test --locked
+    cargo test --locked --test properties
+
+FINAL VALIDATION
+  For the strictrs repository itself:
+    cargo fmt --check
+    cargo clippy --all-targets --all-features -- -D warnings
+    cargo test --all-targets --all-features
+
+  For a generated project:
+    cargo fmt --check
+    cargo clippy --all-targets --all-features --locked -- -D warnings
+    cargo test --locked
+    strictrs check .
+    cargo release-small
+
+AGENT CONSTRAINTS
+  - Keep ordinary Rust; do not introduce new syntax or compiler extensions.
+  - Preserve deterministic JSON, paths, spans, ordering, and exit semantics.
+  - Do not suppress, mask, or silently discard diagnostics.
+  - Do not invent fixes. Apply only explicit MachineApplicable replacements.
+  - Keep changes dependency-light and capability access explicit.
+  - Batch coherent validated changes; do not use CI as a substitute for local
+    formatting, compilation, linting, and tests.

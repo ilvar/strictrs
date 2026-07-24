@@ -41,6 +41,23 @@ Required properties:
 
 Internal metadata such as file names and rustc byte offsets may be retained with `#[serde(skip)]`, but it must not alter the public JSON shape.
 
+## Agent-help contract
+
+`src/help.txt` is the embedded operational manual exposed by `strictrs --help`. Treat it as a public agent interface.
+
+It must describe:
+
+- installation and every supported command form;
+- the check → patch → re-check workflow;
+- stdout/stderr behavior, report fields, deterministic ordering, and exit codes;
+- every stable strict-subset code and the capability-module marker;
+- conservative fix-loop safety and termination;
+- generated-project contents and footprint profile;
+- property-testing expectations and final validation commands;
+- constraints against invented fixes, hidden diagnostics, and unvalidated pushes.
+
+`--help`, `-h`, `help`, and subcommand help aliases must print identical text to stdout and exit successfully. Invocation errors must print only concise usage and error context to stderr. Any CLI, diagnostic, lint, template, property-testing, or validation change must update the embedded help and its regression tests in the same coherent change.
+
 ## Implementation rules
 
 - Prefer boring, dependency-light Rust.
@@ -50,7 +67,7 @@ Internal metadata such as file names and rustc byte offsets may be retained with
 - Keep path normalization and diagnostic ordering stable across machines.
 - Avoid panics in production code. Return structured errors.
 - Do not silently discard malformed compiler messages, Cargo failures, or directory-walk errors unless they are explicitly known non-diagnostic events.
-- Keep stdout reserved for the JSON contract. Human-oriented operational errors belong on stderr.
+- Keep stdout reserved for the JSON contract, except for the explicit plain-text `--help` mode. Human-oriented operational errors belong on stderr.
 - Preserve the explicit exemption for panic APIs in `#[cfg(test)]` code.
 
 ## Mechanical fix rules
@@ -112,6 +129,7 @@ Every behavior change requires a fixture or focused unit test.
 - Fix tests must cover multiple edits in one file, overlapping alternatives, no-progress termination, and iteration caps.
 - Template tests must compare every generated file against the golden template fixture.
 - Property-testing tests must verify the exact dependency pin, generated scaffold, committed lockfile, and successful locked execution.
+- Help tests must verify stdout/stderr separation, successful aliases, and the presence of every required agent-manual section.
 - When changing a golden file, explain why the contract changed; do not refresh snapshots blindly.
 - Preserve the multi-error fixture proving that at least four simultaneous compiler errors are not masked.
 - Preserve the fixture proving panic APIs are allowed in test-only code.
@@ -146,4 +164,4 @@ GitHub Actions must enforce the same commands used locally.
 
 ## Scope discipline
 
-Avoid unrelated refactors in milestone pull requests. Keep commits and pull requests focused enough that diagnostic-contract, source-editing, generated-template, and property-testing changes can be reviewed directly.
+Avoid unrelated refactors in milestone pull requests. Keep commits and pull requests focused enough that diagnostic-contract, source-editing, generated-template, property-testing, installation, and help-contract changes can be reviewed directly.

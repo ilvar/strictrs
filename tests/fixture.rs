@@ -1,10 +1,11 @@
+mod support;
+
 use std::collections::BTreeSet;
-use std::path::Path;
 
 #[test]
 fn cargo_check_surfaces_four_distinct_errors_without_masking() {
-    let fixture = Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/four-errors");
-    let report = strictrs::run_check(&fixture).expect("fixture cargo check should run");
+    let fixture = support::cargo_fixture("four-errors");
+    let report = strictrs::run_check(fixture.path()).expect("fixture cargo check should run");
 
     assert!(!report.ok);
     assert!(report.error_count >= 4, "report was: {report:#?}");

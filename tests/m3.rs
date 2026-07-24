@@ -36,8 +36,13 @@ fn new_command_matches_the_golden_project() {
     assert_eq!(relative_files(&generated), expected_files);
 
     for relative in EXPECTED_FILES {
+        let golden_relative = if *relative == "Cargo.toml" {
+            "Cargo.fixture.toml"
+        } else {
+            *relative
+        };
         let actual = read(&generated.join(relative));
-        let golden = read(&expected.join(relative));
+        let golden = read(&expected.join(golden_relative));
         assert_eq!(actual, golden, "generated {relative} differs");
     }
 }

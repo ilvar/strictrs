@@ -40,6 +40,14 @@ jobs:
       - name: Run tests
         run: cargo test --all-targets --all-features
 
+      - name: Verify package-less git install
+        shell: bash
+        run: |
+          set -euo pipefail
+          install_root="$RUNNER_TEMP/git-install"
+          cargo install --git "file://$GITHUB_WORKSPACE" --root "$install_root" --locked
+          test -x "$install_root/bin/strictrs"
+
   template:
     name: generated project
     runs-on: ubuntu-latest

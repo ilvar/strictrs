@@ -43,7 +43,10 @@ fn help_aliases_have_identical_stdout() {
         let actual = run(arguments);
         assert!(actual.status.success(), "arguments were {arguments:?}");
         assert!(actual.stderr.is_empty(), "arguments were {arguments:?}");
-        assert_eq!(actual.stdout, expected.stdout, "arguments were {arguments:?}");
+        assert_eq!(
+            actual.stdout, expected.stdout,
+            "arguments were {arguments:?}"
+        );
     }
 }
 

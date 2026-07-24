@@ -1,0 +1,10 @@
+[alias]
+release-small = "build --release --locked --target x86_64-unknown-linux-musl -Z build-std=std,panic_abort"
+
+[target.x86_64-unknown-linux-musl]
+rustflags = [
+    "-Zunstable-options",
+    "-Cpanic=immediate-abort",
+    "-Zlocation-detail=none",
+    "-Zfmt-debug=none",
+]

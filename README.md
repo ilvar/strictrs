@@ -10,78 +10,115 @@ Rust already provides ownership, exhaustive matching, explicit errors, strong st
 
 ## Current status
 
-M0, M1, and M2 are implemented:
+M0 through M4 are implemented:
 
-- runs `cargo clippy --message-format=json` as the unified compiler/lint pass
-- emits one deterministic JSON document
-- preserves exact primary spans
-- includes suggestions only when marked `MachineApplicable` by rustc or Clippy
-- maps supported Clippy/rustc lints to stable `strictrs::` codes
-- adds custom checks for catch-all enum arms, mutable globals, explicit public return types, and capability boundaries
-- exempts test-only code from the panic-API ban
-- normalizes paths and sorts diagnostics by `(file, line, col, code)`
-- applies safe fixes per file, back-to-front, then re-checks
-- stops the fix loop when clean, blocked, unchanged, or capped
-- includes compiler-error, strict-subset, test-exemption, fixable, and no-progress fixtures
+- deterministic compiler and Clippy diagnostics in one JSON document;
+- stable `strictrs::` lint codes and focused source checks;
+- conservative `MachineApplicable` fix iteration;
+- a deterministic `strictrs new <name>` project generator;
+- a committed lockfile, pinned toolchain, strict lint policy, and size-oriented MUSL release profile in every generated project;
+- an exact-pinned `proptest` scaffold for agent-authored invariants, shrinking, and regression persistence.
+
+## Install
+
+Install the binary from a local checkout:
+
+```bash
+cargo install --path .
+```
+
+Or install the current `main` branch directly from GitHub:
+
+```bash
+cargo install --git https://github.com/ilvar/strictrs
+```
+
+Ensure Cargo's binary directory is on `PATH`—normally `$HOME/.cargo/bin`.
 
 ## Usage
 
 Check a Cargo project:
 
 ```bash
-cargo run -- check path/to/project
+strictrs check path/to/project
 ```
 
 Apply compiler-supplied mechanical fixes and re-check until the loop stops:
 
 ```bash
-cargo run -- fix path/to/project
+strictrs fix path/to/project
+```
+
+Create a footprint-locked project in the current directory:
+
+```bash
+strictrs new hello-strictrs
 ```
 
 For backward compatibility, a bare path is treated as `check`:
 
 ```bash
-cargo run -- path/to/project
+strictrs path/to/project
 ```
 
-Both commands emit exactly one final JSON report to stdout. They exit with status `0` only when no errors remain. Operational failures are written to stderr and exit with status `2`.
+Every command emits exactly one final JSON report to stdout. It exits with status `0` only on success. Operational failures are written to stderr and exit with status `2`.
 
-The fix command:
+## Generated project
 
-- applies only replacements marked `MachineApplicable`
-- never invents replacement text
-- retains rustc byte offsets internally while leaving the public JSON schema unchanged
-- groups edits by file and applies them from the end of the file toward the start
-- ignores duplicate and overlapping alternative edits deterministically
-- refuses edits outside the target project or across invalid UTF-8 boundaries
-- uses a default cap of 10 iterations
+`strictrs new <name>` creates these deterministic files:
 
-Example diagnostic shape:
+- `.cargo/config.toml`
+- `.gitignore`
+- `Cargo.lock`
+- `Cargo.toml`
+- `README.md`
+- `rust-toolchain.toml`
+- `src/main.rs`
+- `tests/properties.rs`
 
-```json
-{
-  "ok": false,
-  "error_count": 1,
-  "warning_count": 0,
-  "diagnostics": [
-    {
-      "level": "error",
-      "source": "strictrs",
-      "code": "strictrs::no_panic_api",
-      "message": "used `unwrap()` on an `Option` value",
-      "at": {
-        "file": "src/main.rs",
-        "line": 15,
-        "col": 15,
-        "end_line": 15,
-        "end_col": 23,
-        "snippet": "let x = values.first().unwrap();"
-      },
-      "fixes": []
-    }
-  ]
-}
+The generated manifest contains the required footprint profile:
+
+```toml
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
 ```
+
+Generated projects have no runtime dependencies. The property-test scaffold uses an exact-pinned `proptest` dev dependency with default features disabled and only `std` enabled. The committed lockfile pins its transitive test dependencies without changing the release binary.
+
+The generated small-release command is:
+
+```bash
+cargo release-small
+```
+
+**Measured release size:** 34,912 bytes for the generated hello-world binary targeting `x86_64-unknown-linux-musl` in GitHub Actions.
+
+## Property testing
+
+`tests/properties.rs` is the handoff point between the coding agent and the runtime:
+
+1. the agent states invariants over generated inputs;
+2. `proptest` exercises those invariants across many cases;
+3. failures are shrunk to a minimal reproducer;
+4. persisted regressions remain ordinary test inputs.
+
+Run the complete generated-project test suite:
+
+```bash
+cargo test --locked
+```
+
+Run only the property suite:
+
+```bash
+cargo test --locked --test properties
+```
+
+The generated property is deliberately small and domain-neutral. Replace it with invariants about the actual program rather than duplicating the implementation inside the test.
 
 ## Strict subset
 
@@ -97,17 +134,6 @@ Example diagnostic shape:
 | `strictrs::must_handle` | unused `must_use` values | handle or explicitly discard |
 | `strictrs::capability_boundary` | filesystem/network/process calls outside boundaries | isolated capability module |
 
-Capability modules are marked without introducing active custom Rust syntax:
-
-```rust
-// strictrs: capability
-mod filesystem {
-    pub fn load(path: &std::path::Path) -> std::io::Result<String> {
-        std::fs::read_to_string(path)
-    }
-}
-```
-
 ## Development
 
 Required checks:
@@ -118,16 +144,16 @@ cargo clippy --all-targets --all-features -- -D warnings
 cargo test --all-targets --all-features
 ```
 
-Fixtures live under `fixtures/`. Each deliberately broken project should have focused assertions or a matching golden JSON file. Changes to the output schema or ordering are breaking changes and must update snapshots intentionally.
+Fixtures live under `fixtures/`. Changes to the diagnostic schema, ordering, or generated project contents are breaking changes and must update their golden fixtures intentionally.
 
-See [`AGENTS.md`](AGENTS.md) for repository-specific implementation rules, [`docs/M1.md`](docs/M1.md) for lint-pass notes, and [`docs/M2.md`](docs/M2.md) for fix-loop behavior.
+See [`AGENTS.md`](AGENTS.md) for repository-specific implementation rules.
 
 ## Roadmap
 
 - **M0:** deterministic compiler diagnostic oracle — complete
 - **M1:** strict-subset lint pass — complete
 - **M2:** mechanical fix loop with no-progress detection — complete
-- **M3:** footprint-locked project template
-- **M4:** property-testing integration
+- **M3:** footprint-locked project template — complete
+- **M4:** property-testing integration — complete
 
 New syntax, a custom parser, a rustc fork, and macro-based language extensions are explicit non-goals.

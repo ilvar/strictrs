@@ -39,3 +39,83 @@ jobs:
 
       - name: Run tests
         run: cargo test --all-targets --all-features
+
+  template:
+    name: generated project
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install host Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install strictrs binary
+        shell: bash
+        run: |
+          set -euo pipefail
+          install_root="$RUNNER_TEMP/strictrs-install"
+          cargo install --path . --root "$install_root"
+          echo "$install_root/bin" >> "$GITHUB_PATH"
+
+      - name: Generate project
+        shell: bash
+        run: |
+          set -euo pipefail
+          project_root="$(mktemp -d)"
+          cd "$project_root"
+          strictrs new hello-strictrs > report.json
+          grep -q '"ok": true' report.json
+          echo "GENERATED_PROJECT_ROOT=$project_root/hello-strictrs" >> "$GITHUB_ENV"
+
+      - name: Validate generated project
+        working-directory: ${{ env.GENERATED_PROJECT_ROOT }}
+        env:
+          PROPTEST_CASES: 128
+        run: |
+          cargo fmt --check
+          cargo clippy --all-targets --all-features --locked -- -D warnings
+          cargo test --locked
+          cargo test --locked --test properties
+          strictrs check . > strictrs-report.json
+          grep -q '"ok": true' strictrs-report.json
+
+      - name: Build and measure MUSL release
+        shell: bash
+        working-directory: ${{ env.GENERATED_PROJECT_ROOT }}
+        run: |
+          set +e
+          cargo release-small > "$GITHUB_WORKSPACE/template-release.log" 2>&1
+          status=$?
+          cat "$GITHUB_WORKSPACE/template-release.log"
+          if [ "$status" -ne 0 ]; then
+            exit "$status"
+          fi
+
+          set -euo pipefail
+          binary="target/x86_64-unknown-linux-musl/release/hello-strictrs"
+          test "$("$binary")" = "Hello from hello-strictrs."
+          bytes="$(stat -c '%s' "$binary")"
+          echo "$bytes" | tee "$GITHUB_WORKSPACE/template-size-bytes.txt"
+          echo "TEMPLATE_SIZE_BYTES=$bytes"
+
+      - name: Upload release failure log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: template-release-log
+          path: template-release.log
+
+      - name: Upload measured size
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: template-size
+          path: template-size-bytes.txt
+
+      - name: Enforce size limit
+        if: success()
+        shell: bash
+        run: test "$(cat template-size-bytes.txt)" -lt 50000

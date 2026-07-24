@@ -37,6 +37,12 @@ Ensure Cargo's binary directory is on `PATH`—normally `$HOME/.cargo/bin`.
 
 ## Usage
 
+Print the complete embedded instructions for a coding agent:
+
+```bash
+strictrs --help
+```
+
 Check a Cargo project:
 
 ```bash
@@ -61,7 +67,7 @@ For backward compatibility, a bare path is treated as `check`:
 strictrs path/to/project
 ```
 
-Every command emits exactly one final JSON report to stdout. It exits with status `0` only on success. Operational failures are written to stderr and exit with status `2`.
+Operational commands emit exactly one final JSON report to stdout. `--help` is the only plain-text stdout mode. Reports exit with status `0` only on success, status `1` when diagnostics remain, and status `2` for invocation or operational failures. Human-oriented failures are written to stderr.
 
 ## Generated project
 
@@ -144,7 +150,7 @@ cargo clippy --all-targets --all-features -- -D warnings
 cargo test --all-targets --all-features
 ```
 
-Fixtures live under `fixtures/`. Changes to the diagnostic schema, ordering, or generated project contents are breaking changes and must update their golden fixtures intentionally.
+Fixtures live under `fixtures/`. Changes to the diagnostic schema, ordering, generated project contents, or embedded agent help are public-contract changes and must update their focused tests intentionally.
 
 See [`AGENTS.md`](AGENTS.md) for repository-specific implementation rules.
 

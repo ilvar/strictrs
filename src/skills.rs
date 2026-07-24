@@ -64,10 +64,7 @@ fn home_directory() -> Result<PathBuf, String> {
 fn detected_targets(home: &Path) -> Vec<Target> {
     let mut targets = Vec::new();
 
-    if home.join(".codex").is_dir()
-        || home.join(".agents").is_dir()
-        || command_exists("codex")
-    {
+    if home.join(".codex").is_dir() || home.join(".agents").is_dir() || command_exists("codex") {
         targets.push(Target {
             agent: "Codex",
             path: home

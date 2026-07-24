@@ -2,6 +2,7 @@
 name = "strictrs"
 version = "0.1.0"
 edition = "2021"
+rust-version = "1.97.1"
 description = "A deterministic Rust diagnostic oracle for LLM code generation"
 license = "MIT OR Apache-2.0"
 

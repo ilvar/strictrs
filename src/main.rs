@@ -1,3 +1,4 @@
+mod skills;
 mod template;
 
 use std::env;
@@ -5,7 +6,8 @@ use std::path::Path;
 use std::process::ExitCode;
 
 const AGENT_HELP: &str = include_str!("help.txt");
-const USAGE: &str = "usage: strictrs [--help] | strictrs [check|fix] [path] | strictrs new <name>";
+const USAGE: &str =
+    "usage: strictrs [--help] | strictrs [check|fix] [path] | strictrs new <name> | strictrs install-skills";
 
 fn main() -> ExitCode {
     let mut arguments = env::args().skip(1);
@@ -40,6 +42,18 @@ fn main() -> ExitCode {
                 ExitCode::from(2)
             }
         },
+        Operation::InstallSkills => match skills::install_detected() {
+            Ok(messages) => {
+                for message in messages {
+                    eprintln!("{message}");
+                }
+                emit_report(&clean_report())
+            }
+            Err(error) => {
+                eprintln!("{error}");
+                ExitCode::from(2)
+            }
+        },
     }
 }
 
@@ -48,6 +62,7 @@ enum Operation {
     Check(String),
     Fix(String),
     New(String),
+    InstallSkills,
 }
 
 fn parse_operation(
@@ -64,6 +79,7 @@ fn parse_operation(
             Some(name) => Ok(Operation::New(name.to_owned())),
             None => Err("new requires a project name".to_owned()),
         },
+        Some("install-skills") => parse_install_skills(arguments),
         Some(path) => Ok(Operation::Check(path.to_owned())),
     }
 }
@@ -76,6 +92,14 @@ fn parse_path_or_help(
         Some("-h" | "--help") => Ok(Operation::Help),
         Some(path) => Ok(operation(path.to_owned())),
         None => Ok(operation(".".to_owned())),
+    }
+}
+
+fn parse_install_skills(arguments: &mut impl Iterator<Item = String>) -> Result<Operation, String> {
+    match arguments.next().as_deref() {
+        None => Ok(Operation::InstallSkills),
+        Some("-h" | "--help") => Ok(Operation::Help),
+        Some(_) => Err("install-skills does not accept arguments".to_owned()),
     }
 }
 

@@ -1,6 +1,6 @@
 #[test]
 fn generated_project_pins_and_scaffolds_property_testing() {
-    let manifest = include_str!("../fixtures/m3-template/Cargo.toml");
+    let manifest = include_str!("../fixtures/m3-template/Cargo.fixture.toml");
     let lockfile = include_str!("../fixtures/m3-template/Cargo.lock");
     let properties = include_str!("../fixtures/m3-template/tests/properties.rs");
 

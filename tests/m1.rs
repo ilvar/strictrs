@@ -1,11 +1,13 @@
+mod support;
+
 use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;
 
 #[test]
 fn strict_subset_lints_share_the_unified_contract() {
-    let fixture = Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/strict-subset");
-    let report = strictrs::run_check(&fixture).expect("fixture lint pass should run");
+    let fixture = support::cargo_fixture("strict-subset");
+    let report = strictrs::run_check(fixture.path()).expect("fixture lint pass should run");
 
     assert!(!report.ok);
 
@@ -52,8 +54,8 @@ fn marked_capability_module_is_exempt() {
 
 #[test]
 fn only_panic_apis_are_exempt_in_cfg_test_code() {
-    let fixture = Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/test-exemption");
-    let report = strictrs::run_check(&fixture).expect("test exemption fixture should run");
+    let fixture = support::cargo_fixture("test-exemption");
+    let report = strictrs::run_check(fixture.path()).expect("test exemption fixture should run");
 
     assert!(!report
         .diagnostics

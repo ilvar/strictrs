@@ -293,8 +293,18 @@ pub fn scan_strict_subset(project_dir: &Path) -> Result<Vec<Diagnostic>, String>
         return Ok(Vec::new());
     }
 
-    let public_fn = Regex::new(
-        r"(?ms)^[ \t]*pub(?:\([^)]*\))?[ \t]+(?:async[ \t]+)?fn[ \t]+[A-Za-z_][A-Za-z0-9_]*(?:[ \t]*<[^{};]*>)?[ \t]*\([^{};]*\)[ \t]*(?:where[^{;]*)?\{",
+    // Matches only the *prefix* of a `pub fn` signature, up to and
+    // including the opening paren of its parameter list. What follows the
+    // matching close paren (return type, where clause, body) is resolved
+    // by `find_missing_return_type_starts` with a depth-counting scan
+    // rather than more regex: a single `[^{};]*` char class for "the
+    // parameter list" can't tell the difference between the real closing
+    // paren and a `)` that belongs to the return type (most notably a
+    // bare `-> ()`), and will happily match past the real one to a later
+    // `)` if that lets the rest of the pattern succeed. That misreads an
+    // explicit `-> ()` as no return type at all.
+    let public_fn_prefix = Regex::new(
+        r"(?m)^[ \t]*pub(?:\([^)]*\))?[ \t]+(?:async[ \t]+)?fn[ \t]+[A-Za-z_][A-Za-z0-9_]*(?:[ \t]*<[^{};]*>)?[ \t]*\(",
     )
     .map_err(|error| format!("invalid public function regex: {error}"))?;
     let mutable_static = Regex::new(r"^\s*(?:pub\s+)?static\s+mut\b")
@@ -321,8 +331,8 @@ pub fn scan_strict_subset(project_dir: &Path) -> Result<Vec<Diagnostic>, String>
         let local_enums = local_enum_names(&lines, &enum_declaration);
         let catchall_lines = catchall_arm_lines(&lines, &local_enums);
 
-        for matched in public_fn.find_iter(&source) {
-            let line_no = line_number_at(&source, matched.start());
+        for start in find_missing_return_type_starts(&source, &public_fn_prefix) {
+            let line_no = line_number_at(&source, start);
             let snippet = lines
                 .get(line_no.saturating_sub(1))
                 .copied()
@@ -380,6 +390,68 @@ pub fn scan_strict_subset(project_dir: &Path) -> Result<Vec<Diagnostic>, String>
     }
 
     Ok(diagnostics)
+}
+
+/// Byte offsets of `pub fn` signatures (matched by `prefix`, which stops
+/// right after the parameter list's opening paren) that have no explicit
+/// return type. Finds the parameter list's *real* closing paren by
+/// tracking depth rather than by regex, so a `)` inside the return type
+/// itself — as in a bare `-> ()`, or any type like `Result<(), E>` — can
+/// never be mistaken for it.
+fn find_missing_return_type_starts(source: &str, prefix: &Regex) -> Vec<usize> {
+    let bytes = source.as_bytes();
+    let mut starts = Vec::new();
+
+    for signature in prefix.find_iter(source) {
+        let mut depth: i32 = 1; // the prefix match already consumed the opening '('
+        let mut index = signature.end();
+        let mut close_paren = None;
+        while index < bytes.len() {
+            match bytes[index] {
+                b'(' => depth += 1,
+                b')' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        close_paren = Some(index);
+                        break;
+                    }
+                }
+                _ => {}
+            }
+            index += 1;
+        }
+
+        let Some(close_paren) = close_paren else {
+            continue; // unbalanced parens; a heuristic scanner should not guess
+        };
+
+        let mut cursor = close_paren + 1;
+        while matches!(bytes.get(cursor), Some(b' ') | Some(b'\t')) {
+            cursor += 1;
+        }
+        let Some(after_params) = source.get(cursor..) else {
+            continue;
+        };
+
+        if after_params.starts_with("->") {
+            continue; // explicit return type present
+        }
+        if after_params.starts_with('{') {
+            starts.push(signature.start());
+            continue;
+        }
+        if after_params.starts_with("where") {
+            let has_body = bytes[cursor..]
+                .iter()
+                .find(|byte| **byte == b'{' || **byte == b';')
+                .is_some_and(|byte| *byte == b'{');
+            if has_body {
+                starts.push(signature.start());
+            }
+        }
+    }
+
+    starts
 }
 
 fn map_lint_code(raw: Option<&str>) -> (&'static str, Option<String>) {

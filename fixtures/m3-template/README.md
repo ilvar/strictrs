@@ -24,7 +24,7 @@ cargo test --locked --test properties
 ## Docker
 
 The `Dockerfile` has two entry paths that share one runtime stage
-(`debian:bookworm-slim`, non-root):
+(`gcr.io/distroless/cc-debian12`, non-root):
 
 ```bash
 # compile inside the image (local use)

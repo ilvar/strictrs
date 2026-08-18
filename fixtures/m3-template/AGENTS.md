@@ -39,4 +39,4 @@ suppress or mask diagnostics.
 - `.github/workflows/ci.yml` compiles once, tests, runs `strictrs check`, and
   builds and smoke-tests the Docker image. Add image publishing separately.
 - `Dockerfile`: `from-source` compiles locally; `from-artifact` copies the
-  CI-built binary from `dist/`. Both share the `debian:bookworm-slim` runtime.
+  CI-built binary from `dist/`. Both share a `gcr.io/distroless/cc-debian12:nonroot` runtime.

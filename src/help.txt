@@ -136,11 +136,20 @@ FIX SAFETY
 GENERATED PROJECTS
   `strictrs new NAME` creates:
     .cargo/config.toml
+    .dockerignore
+    .github/workflows/ci.yml
     .gitignore
+    .pre-commit-config.yaml
+    AGENTS.md
+    CLAUDE.md
     Cargo.lock
     Cargo.toml
+    Dockerfile
+    Makefile
     README.md
     rust-toolchain.toml
+    scripts/bump_version.py
+    scripts/commit.sh
     src/main.rs
     tests/properties.rs
 
@@ -151,6 +160,12 @@ GENERATED PROJECTS
     codegen-units = 1
     panic = "abort"
     strip = true
+
+  It also scaffolds a dev workflow that mirrors the strict gate: a pre-commit
+  config, a Makefile, a reusable GitHub Actions CI workflow (fmt, clippy, test,
+  strictrs check, shellcheck, and a Docker image build + smoke test), a
+  multi-stage Dockerfile, and scripts/ (commit.sh, bump_version.py). Image
+  publishing is intentionally left out; add it for your own registry.
 
 PROPERTY TESTING
   Replace the starter invariant in `tests/properties.rs` with domain properties.

@@ -1,0 +1,123 @@
+name: CI
+
+# Shaped by build reuse: Rust compiles EXACTLY ONCE, in the `rust` job, which
+# runs in rust:1.97-bookworm — the same Debian release as the runtime image, so
+# the release binary it uploads runs unmodified there. The `image` job downloads
+# that binary and copies it into the runtime stage; it compiles nothing.
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+  workflow_call:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  rust:
+    name: rust
+    runs-on: ubuntu-latest
+    container: rust:1.97-bookworm
+    timeout-minutes: 40
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dependency hash for the cargo cache
+        id: deps
+        run: |
+          sed '/^name = "hello-strictrs"$/,/^$/{/^version = /d;}' Cargo.lock > deps.hashinput
+          cat rust-toolchain.toml >> deps.hashinput
+          echo "hash=$(sha256sum deps.hashinput | cut -c1-16)" >> "$GITHUB_OUTPUT"
+          rm -f deps.hashinput
+
+      - name: Cache cargo registry and build artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            /usr/local/cargo/registry/index/
+            /usr/local/cargo/registry/cache/
+            /usr/local/cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-bookworm-${{ steps.deps.outputs.hash }}
+          restore-keys: ${{ runner.os }}-cargo-bookworm-
+
+      - name: cargo fmt --check
+        run: cargo fmt --check
+
+      - name: clippy
+        run: cargo clippy --all-targets --all-features --locked -- -D warnings
+
+      - name: test
+        run: cargo test --locked
+
+      - name: build --release
+        run: cargo build --release --locked --bin hello-strictrs
+
+      - name: Stage the binary
+        run: |
+          mkdir -p dist
+          cp target/release/hello-strictrs dist/hello-strictrs
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: binary
+          path: dist/
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Week stamp for the strictrs cache
+        id: week
+        run: echo "week=$(date -u +%G-W%V)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache strictrs
+        uses: actions/cache@v4
+        with:
+          path: /usr/local/cargo/bin/strictrs
+          key: strictrs-${{ runner.os }}-${{ steps.week.outputs.week }}
+
+      - name: Install strictrs
+        run: |
+          command -v strictrs >/dev/null \
+            || cargo install --git https://github.com/ilvar/strictrs --locked
+
+      - name: strictrs check
+        run: strictrs check .
+
+      - name: shellcheck
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends shellcheck
+          shellcheck --severity=warning scripts/*.sh
+
+  image:
+    name: image
+    needs: rust
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download binary
+        uses: actions/download-artifact@v4
+        with:
+          name: binary
+          path: dist/
+
+      - name: Build image
+        run: |
+          chmod +x dist/hello-strictrs
+          docker build --target from-artifact --tag hello-strictrs:ci .
+
+      - name: Image runs
+        run: docker run --rm hello-strictrs:ci | grep -q 'Hello from hello-strictrs.'

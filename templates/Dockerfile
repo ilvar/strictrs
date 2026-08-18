@@ -30,13 +30,9 @@ RUN touch src/*.rs \
     && cargo build --release --locked --bin __CRATE__
 
 # --- runtime ----------------------------------------------------------------
-# ca-certificates so outbound TLS can verify the server chain.
-FROM debian:bookworm-slim AS runtime
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-
-USER 65532:65532
+# Distroless: glibc (matches the bookworm builder) plus ca-certificates, with no
+# shell or package manager. The :nonroot tag runs as uid 65532 by default.
+FROM gcr.io/distroless/cc-debian12:nonroot AS runtime
 ENTRYPOINT ["/usr/local/bin/__CRATE__"]
 
 # CI path: the binary was compiled by the workflow, in this same Debian release,

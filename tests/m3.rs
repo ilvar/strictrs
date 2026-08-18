@@ -4,11 +4,20 @@ use std::process::Command;
 
 const EXPECTED_FILES: &[&str] = &[
     ".cargo/config.toml",
+    ".dockerignore",
+    ".github/workflows/ci.yml",
     ".gitignore",
+    ".pre-commit-config.yaml",
+    "AGENTS.md",
+    "CLAUDE.md",
     "Cargo.lock",
     "Cargo.toml",
+    "Dockerfile",
+    "Makefile",
     "README.md",
     "rust-toolchain.toml",
+    "scripts/bump_version.py",
+    "scripts/commit.sh",
     "src/main.rs",
     "tests/properties.rs",
 ];

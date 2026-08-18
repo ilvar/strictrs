@@ -103,11 +103,20 @@ Operational commands emit exactly one final JSON report to stdout. `--help` is t
 `strictrs new <name>` creates these deterministic files:
 
 - `.cargo/config.toml`
+- `.dockerignore`
+- `.github/workflows/ci.yml`
 - `.gitignore`
+- `.pre-commit-config.yaml`
+- `AGENTS.md`
+- `CLAUDE.md`
 - `Cargo.lock`
 - `Cargo.toml`
+- `Dockerfile`
+- `Makefile`
 - `README.md`
 - `rust-toolchain.toml`
+- `scripts/bump_version.py`
+- `scripts/commit.sh`
 - `src/main.rs`
 - `tests/properties.rs`
 
@@ -123,6 +132,8 @@ strip = true
 ```
 
 Generated projects have no runtime dependencies. The property-test scaffold uses an exact-pinned `proptest` dev dependency with default features disabled and only `std` enabled. The committed lockfile pins its transitive test dependencies without changing the release binary.
+
+Alongside the crate, `new` scaffolds a development workflow that mirrors the strict gate: a `.pre-commit-config.yaml`, a `Makefile`, a reusable GitHub Actions workflow (`.github/workflows/ci.yml`: fmt, clippy, test, `strictrs check`, shellcheck, and a Docker image build + smoke test), a multi-stage `Dockerfile`, `AGENTS.md`/`CLAUDE.md`, and `scripts/` (`commit.sh`, `bump_version.py`). Image publishing is intentionally omitted — add a workflow for your own registry.
 
 The generated small-release command uses stable Rust and the prebuilt MUSL standard library:
 

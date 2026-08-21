@@ -180,6 +180,12 @@ The generated property is deliberately small and domain-neutral. Replace it with
 | `strictrs::must_handle` | unused `must_use` values | handle or explicitly discard |
 | `strictrs::capability_boundary` | filesystem/network/process calls outside boundaries | isolated capability module |
 
+Because `strictrs::explicit_return_type` requires a public unit-returning
+function to spell out `-> ()`, `clippy::unused_unit` — which argues against
+that `-> ()` — is never reported, and generated projects set it to `allow` so
+the same code passes `cargo clippy -- -D warnings`. Without that, one of the
+two rules would fire whichever way the function is written.
+
 ## Development
 
 The repository pins Rust 1.97.1 in `rust-toolchain.toml`. Required checks:

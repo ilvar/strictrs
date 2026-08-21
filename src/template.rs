@@ -201,6 +201,7 @@ unused_must_use = "deny"
 
 [lints.clippy]
 as_conversions = "deny"
+unused_unit = "allow"
 wildcard_imports = "deny"
 
 [profile.release]

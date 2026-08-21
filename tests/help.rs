@@ -22,6 +22,9 @@ fn help_prints_the_complete_agent_manual() {
         "AGENT CONSTRAINTS",
         "MachineApplicable",
         "strictrs::capability_boundary",
+        // The subset requires `-> ()` on a unit-returning public function, so
+        // the help has to say why the lint arguing against it stays silent.
+        "clippy::unused_unit",
         "strictrs install-skills",
         ".agents/skills/strictrs/SKILL.md",
         ".claude/skills/strictrs/SKILL.md",

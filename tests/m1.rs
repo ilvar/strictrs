@@ -120,3 +120,51 @@ fn catchall_on_an_unrelated_type_is_not_flagged() {
         .iter()
         .any(|diagnostic| { diagnostic.code.as_deref() == Some("strictrs::no_catchall_arm") }));
 }
+
+#[test]
+fn a_public_unit_returning_function_is_writable() {
+    let fixture = support::cargo_fixture("unit-return");
+    let report = strictrs::run_check(fixture.path()).expect("unit-return fixture should run");
+
+    // The subset requires the `-> ()`, so neither rule may fire: reporting
+    // `explicit_return_type` without it and `clippy::unused_unit` with it
+    // would leave the function unwritable either way.
+    let offending: Vec<_> = report
+        .diagnostics
+        .iter()
+        .filter(|diagnostic| {
+            matches!(
+                diagnostic.code.as_deref(),
+                Some("strictrs::explicit_return_type") | Some("clippy::unused_unit")
+            )
+        })
+        .collect();
+
+    assert!(
+        offending.is_empty(),
+        "unit-returning public fn was rejected: {offending:#?}"
+    );
+    assert!(report.ok, "report was: {report:#?}");
+}
+
+#[test]
+fn dropping_the_unit_return_type_still_reports_it() {
+    let fixture = support::cargo_fixture("unit-return");
+    let source = fixture.path().join("src/main.rs");
+    let relaxed = fs::read_to_string(&source)
+        .expect("fixture source should be readable")
+        .replace(
+            "pub fn announce(message: &str) -> () {",
+            "pub fn announce(message: &str) {",
+        );
+    fs::write(&source, relaxed).expect("fixture source should be writable");
+
+    let diagnostics = strictrs::scan_strict_subset(fixture.path()).expect("source scan should run");
+
+    assert!(
+        diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code.as_deref() == Some("strictrs::explicit_return_type")),
+        "omitting the return type should still be reported: {diagnostics:#?}"
+    );
+}

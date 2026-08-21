@@ -264,6 +264,9 @@ pub fn parse_cargo_messages(stream: &str, project_dir: &Path) -> Report {
             .get("code")
             .and_then(|value| value.get("code"))
             .and_then(Value::as_str);
+        if is_subset_mandated(raw_code) {
+            continue;
+        }
         let (source, code) = map_lint_code(raw_code);
         let primary_span = inner
             .get("spans")
@@ -452,6 +455,21 @@ fn find_missing_return_type_starts(source: &str, prefix: &Regex) -> Vec<usize> {
     }
 
     starts
+}
+
+/// Lints that object to a construct the strict subset requires.
+///
+/// `strictrs::explicit_return_type` makes a public `fn` spell out `-> ()`, and
+/// `clippy::unused_unit` asks for exactly that `-> ()` back. Reporting both
+/// would leave a unit-returning public function unwritable: one of the two
+/// fires whichever way it is spelled. The subset's rule is the one that wins,
+/// so the lint arguing against it is dropped rather than surfaced as noise the
+/// fix loop can never clear.
+///
+/// Generated projects also carry `unused_unit = "allow"`, so the same code
+/// passes the `cargo clippy -- -D warnings` gate this project mandates.
+fn is_subset_mandated(raw: Option<&str>) -> bool {
+    raw == Some("clippy::unused_unit")
 }
 
 fn map_lint_code(raw: Option<&str>) -> (&'static str, Option<String>) {

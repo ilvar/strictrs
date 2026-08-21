@@ -99,6 +99,9 @@ STRICT SUBSET
 
   strictrs::explicit_return_type
       Public functions must declare an explicit return type, including `-> ()`.
+      Because the subset requires that `-> ()`, `clippy::unused_unit` — which
+      argues against it — is never reported, and generated projects set it to
+      `allow` so the same code passes `cargo clippy -- -D warnings`.
 
   strictrs::must_handle
       Handle must_use values or explicitly discard them when intentional.

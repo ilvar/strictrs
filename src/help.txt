@@ -6,6 +6,14 @@ PURPOSE
   primary feedback oracle while generating or modifying Rust code.
 
 INSTALL
+  Latest checksummed Linux/macOS x64/ARM64 installer: download install.sh from
+  https://raw.githubusercontent.com/ilvar/strictrs/main/install.sh and run bash install.sh.
+  STRICTRS_VERSION=0.1.1 (or v0.1.1) pins downloads and source builds;
+  unset, empty, or latest selects the latest release. STRICTRS_INSTALL_DIR
+  changes ~/.local/bin; STRICTRS_BUILD_FROM_SOURCE=1 forces a build.
+  Unsupported architectures build the selected tag. Source builds require rustup and a native C compiler; the installer installs Rust 1.97.1 via rustup.
+  Runtime dependencies: Cargo with Clippy and Rust 1.97.1. No download/checksum failure is ignored.
+
   cargo install --git https://github.com/ilvar/strictrs
 
   After installation, register the portable agent skill with detected local

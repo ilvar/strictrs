@@ -22,6 +22,26 @@ M0 through M4 are implemented:
 
 ## Install
 
+Install the latest release into `~/.local/bin`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ilvar/strictrs/main/install.sh -o /tmp/strictrs-install.sh
+bash /tmp/strictrs-install.sh
+```
+
+The installer downloads a checksummed Linux or macOS binary for x64 or ARM64.
+`STRICTRS_VERSION=0.1.1` (or `v0.1.1`) pins a release; unset, empty, or `latest`
+selects the latest release. `STRICTRS_INSTALL_DIR=/your/bin` changes the destination.
+`STRICTRS_BUILD_FROM_SOURCE=1` forces a source build. Other architectures build
+from the same selected tag. Source builds require rustup and a native C compiler; the installer installs Rust 1.97.1 via rustup.
+Runtime dependencies: Cargo with Clippy and Rust 1.97.1. Download or checksum failures stop installation
+without replacing an existing binary. Binary installation needs a published
+release; pinned source builds only need a Git tag.
+
+CI publishes Linux/macOS x64/ARM64 binaries and checksums after the existing
+validation gates pass. Bump `Cargo.toml` and `Cargo.lock` together to publish a new release. Existing releases are never overwritten.
+Installer regression tests run with `python3 tests/test_installer.py`.
+
 Install the binary from a local checkout:
 
 ```bash
